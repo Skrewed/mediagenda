@@ -1,14 +1,14 @@
 <?php
-    //abrir banco de dados:
-    $host_bd = "mysql";
+
+    $host_bd = "localhost";
     $login_bd = "root";
-    $password_bd = "xxxxxxx";
-    $nome_bd = "mediagenda";
+    $password_bd = "";
+    $nome_bd = "labdbprog2";
     $port = 3306;
 
     $conexao_bd = mysqli_connect($host_bd, $login_bd, $password_bd,$nome_bd, $port);
 
     if (!$conexao_bd) {
-        die("Falha na conexão com o banco de dados: " . mysqli_connect_error());
+        die("Falha na conexão com o banco de dados. Tente novamente mais tarde.");
     }
 ?>

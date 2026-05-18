@@ -9,13 +9,16 @@ if(!isset($_SESSION['cod_usuario'])){
 $cod_usuario = $_SESSION['cod_usuario'];
 $nomeUsuario = "";
 $emailUsuario = "";
+$pageError = '';
 $sql = "SELECT * FROM usuario WHERE cod_usuario = '$cod_usuario'";
 
 $result = mysqli_query($conexao_bd,$sql); //pega o resultado da query e lança num array
 
-if($consulta = mysqli_fetch_assoc($result)){ //leitura do array
+if ($result && $consulta = mysqli_fetch_assoc($result)) { //leitura do array
     $nomeUsuario  = $consulta['nome'];
     $emailUsuario = $consulta['email'];
+} elseif ($result === false) {
+    $pageError = mysqli_error($conexao_bd);
 }
 
 /* ============================================================
@@ -39,49 +42,83 @@ $operadorEmail = $emailUsuario;
    - horario     : 'HH:MM'
    - status      : 'Confirmado' | 'Pendente'
 */
-echo (">>> passou 0 | " . $_SERVER['REQUEST_METHOD']);
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        echo (">>> passou 1");
-        $acao = isset($_POST['acao']) ? $_POST['acao'] : '';
+$pageError = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $acao = isset($_POST['acao']) ? $_POST['acao'] : '';
+    $redirect = 'cadastro_agendas.php';
+
+    try {
         if ($acao === 'novo') {
-            $paciente      = $_POST['paciente'];
-            $medico_id     = $_POST['medico_id'];
-            $especialidade = $_POST['especialidade'];
-            $data          = $_POST['data'];
-            $horario       = $_POST['horario'];
-            $status        = $_POST['status'];
-            $sql           = "INSERT INTO 
-                              agendamentos(paciente, medico_id, especialidade_id, data, horario, status) 
-                              VALUES('".$paciente."', ".$medico_id.", 1, '".$data."',
-                              '".$horario."', '".$status."')";
-            mysqli_query($conexao_bd, $sql) or die('ERR: '.mysql_error());
-           // INSERT INTO agendamentos (...) VALUES (...)
+            $paciente      = trim($_POST['paciente'] ?? '');
+            $medico_id     = intval($_POST['medico_id'] ?? 0);
+            $especialidade = trim($_POST['especialidade'] ?? '');
+            $data          = trim($_POST['data'] ?? '');
+            $horario       = trim($_POST['horario'] ?? '');
+            $status        = trim($_POST['status'] ?? 'Pendente');
+
+            if ($paciente === '' || $medico_id <= 0 || $especialidade === '' || $data === '' || $horario === '') {
+                throw new Exception('Preencha todos os campos obrigatórios do agendamento.');
+            }
+
+            $pacienteEsc      = mysqli_real_escape_string($conexao_bd, $paciente);
+            $medicoIdEsc      = $medico_id;
+            $especialidadeEsc = mysqli_real_escape_string($conexao_bd, $especialidade);
+            $dataEsc          = mysqli_real_escape_string($conexao_bd, $data);
+            $horarioEsc       = mysqli_real_escape_string($conexao_bd, $horario);
+            $statusEsc        = mysqli_real_escape_string($conexao_bd, $status);
+
+            $sql = "INSERT INTO agendamentos (paciente, medico_id, especialidade_id, data, horario, status) ";
+            $sql .= "VALUES ('" . $pacienteEsc . "', " . $medicoIdEsc . ", 1, '" . $dataEsc . "', '" . $horarioEsc . "', '" . $statusEsc . "')";
+            $resultExec = mysqli_query($conexao_bd, $sql);
+            if (!$resultExec) {
+                throw new Exception('Não foi possível cadastrar o agendamento. ' . mysqli_error($conexao_bd));
+            }
+            $redirect .= '?alert=success&acao=novo';
         } elseif ($acao === 'editar') {
-            $paciente      = $_POST['paciente'];
-            $medico_id     = $_POST['medico_id'];
-            $especialidade = $_POST['especialidade'];
-            $data          = $_POST['data'];
-            $horario       = $_POST['horario'];
-            $status        = $_POST['status'];
-            $id_agenda     = $_POST['id'];
-            $sql = "UPDATE agendamentos SET 
-                     paciente = '".$paciente."',
-                     medico_id = ".$medico_id.",
-                     especialidade_id = 1, 
-                     data = '".$data."',
-                     horario = '".$horario."',
-                     status  = '".$status."'
-                    WHERE id = ".$id_agenda;
-            mysqli_query($conexao_bd, $sql) or die("ERR.: ".mysql_error());
+            $paciente      = trim($_POST['paciente'] ?? '');
+            $medico_id     = intval($_POST['medico_id'] ?? 0);
+            $especialidade = trim($_POST['especialidade'] ?? '');
+            $data          = trim($_POST['data'] ?? '');
+            $horario       = trim($_POST['horario'] ?? '');
+            $status        = trim($_POST['status'] ?? 'Pendente');
+            $id_agenda     = intval($_POST['id'] ?? 0);
+
+            if ($id_agenda <= 0) {
+                throw new Exception('Agendamento inválido para edição.');
+            }
+
+            $pacienteEsc      = mysqli_real_escape_string($conexao_bd, $paciente);
+            $medicoIdEsc      = $medico_id;
+            $especialidadeEsc = mysqli_real_escape_string($conexao_bd, $especialidade);
+            $dataEsc          = mysqli_real_escape_string($conexao_bd, $data);
+            $horarioEsc       = mysqli_real_escape_string($conexao_bd, $horario);
+            $statusEsc        = mysqli_real_escape_string($conexao_bd, $status);
+
+            $sql = "UPDATE agendamentos SET paciente = '" . $pacienteEsc . "', medico_id = " . $medicoIdEsc . ", especialidade_id = 1, data = '" . $dataEsc . "', horario = '" . $horarioEsc . "', status = '" . $statusEsc . "' WHERE id = " . $id_agenda;
+            $resultExec = mysqli_query($conexao_bd, $sql);
+            if (!$resultExec) {
+                throw new Exception('Não foi possível atualizar o agendamento. ' . mysqli_error($conexao_bd));
+            }
+            $redirect .= '?alert=success&acao=editar';
         } elseif ($acao === 'cancelar') {
-            $id_agenda     = $_POST['id'];
-            $sql = "DELETE FROM agendamentos WHERE id = ".$id_agenda;
-            mysqli_query($conexao_bd, $sql) or die("ERR.: ".mysql_error());
-           // UPDATE agendamentos SET status = 'Cancelado' WHERE id = ?
-       }
-       //header("Location: cadastro_agendas.php");
-       //exit;
+            $id_agenda = intval($_POST['id'] ?? 0);
+            if ($id_agenda <= 0) {
+                throw new Exception('Agendamento inválido para cancelamento.');
+            }
+            $sql = "DELETE FROM agendamentos WHERE id = " . $id_agenda;
+            $resultExec = mysqli_query($conexao_bd, $sql);
+            if (!$resultExec) {
+                throw new Exception('Não foi possível cancelar o agendamento. ' . mysqli_error($conexao_bd));
+            }
+            $redirect .= '?alert=success&acao=cancelar';
+        }
+    } catch (Exception $e) {
+        $redirect .= '?alert=error&message=' . rawurlencode($e->getMessage());
     }
+
+    header("Location: " . $redirect);
+    exit;
+}
 //============================================================ */
 
 /* ============================================================
@@ -118,16 +155,22 @@ $agendamentos = [
 ];*/
 $sql = "SELECT * FROM vw_agendamentos";
 $result = mysqli_query($conexao_bd, $sql);
-while ($row = mysqli_fetch_assoc($result)) {
-    $agendamentos[] = [
-        'id'            => $row['id'],
-        'data'          => $row['data'],
-        'horario'       => $row['horario'],
-        'paciente'      => $row['paciente'],
-        'medico'        => $row['medico'],
-        'especialidade' => $row['especialidade'],
-        'status'        => $row['status']
-    ];
+if ($result) {
+    while ($row = mysqli_fetch_assoc($result)) {
+        $agendamentos[] = [
+            'id'            => $row['id'],
+            'data'          => $row['data'],
+            'horario'       => $row['horario'],
+            'paciente'      => $row['paciente'],
+            'medico'        => $row['medico'],
+            'especialidade' => $row['especialidade'],
+            'status'        => $row['status']
+        ];
+    }
+} else {
+    if ($pageError === '') {
+        $pageError = mysqli_error($conexao_bd);
+    }
 }
 
 
@@ -484,7 +527,7 @@ $medicos = [
                 <li><a class="dropdown-item" href="#"><i class="fa-solid fa-envelope"></i><?php echo htmlspecialchars($operadorEmail) ?></a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="#"><i class="fa-solid fa-gear"></i>Configurações</a></li>
-                <li><a class="dropdown-item" href="#"><i class="fa-solid fa-right-from-bracket"></i>Sair</a></li>
+                <li><a class="dropdown-item" href="logout.php"><i class="fa-solid fa-right-from-bracket"></i>Sair</a></li>
             </ul>
         </div>
     </nav>
@@ -504,7 +547,7 @@ $medicos = [
                 <a class="nav-link" href="cadastro_medicos.php"><i class="fa-solid fa-user-doctor"></i> Cadastro de Médicos</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#"><i class="fa-solid fa-list-check"></i> Cadastro de Especialidades</a>
+                <a class="nav-link" href="cadastro_especialidades.php"><i class="fa-solid fa-list-check"></i> Cadastro de Especialidades</a>
             </li>
         </ul>
     </aside>
@@ -761,7 +804,7 @@ $medicos = [
                             <i class="fa-solid fa-floppy-disk me-1"></i> Salvar
                         </button>
                     </div>
-                </form>t
+                </form>
             </div>
         </div>
     </div>
@@ -779,6 +822,49 @@ $medicos = [
         var sidebar           = document.getElementById('sidebar');
         var conteudoPrincipal = document.getElementById('conteudoPrincipal');
         var sidebarOverlay    = document.getElementById('sidebarOverlay');
+        var urlParams         = new URLSearchParams(window.location.search);
+        var pageAlert         = urlParams.get('alert');
+        var pageAction        = urlParams.get('acao');
+        var serverErrorMessage = <?php echo json_encode($pageError); ?>;
+
+        if (serverErrorMessage) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Ops, algo deu errado!',
+                text: serverErrorMessage,
+                confirmButtonText: 'Entendi'
+            });
+        } else if (pageAlert === 'success') {
+            var message = '';
+            if (pageAction === 'novo') {
+                message = 'Agendamento cadastrado com sucesso!';
+            } else if (pageAction === 'editar') {
+                message = 'Agendamento atualizado com sucesso!';
+            } else if (pageAction === 'cancelar') {
+                message = 'Agendamento cancelado com sucesso!';
+            }
+            if (message) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Tudo certo!',
+                    text: message,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2200,
+                    timerProgressBar: true
+                });
+            }
+        } else if (pageAlert === 'error') {
+            var errorMessage = urlParams.get('message') || 'Ocorreu um erro inesperado.';
+            errorMessage = decodeURIComponent(errorMessage);
+            Swal.fire({
+                icon: 'error',
+                title: 'Ops, algo deu errado!',
+                text: errorMessage,
+                confirmButtonText: 'Entendi'
+            });
+        }
 
         btnSanduiche.addEventListener('click', function() {
             if (window.innerWidth <= 991.98) {
