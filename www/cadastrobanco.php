@@ -1,5 +1,5 @@
 <?php
-    require_once("conexao.php");/
+    require_once("conexao.php");
     $usuario = isset($_POST["usuario"]) ? trim($_POST["usuario"]) : '';
     $senha = isset($_POST["senha"]) ? trim($_POST["senha"]) : '';
 
