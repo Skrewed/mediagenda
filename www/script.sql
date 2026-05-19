@@ -14,7 +14,7 @@ create table if not exists usuario (
     nome varchar(150) not null,
     email varchar(150) not null,
     username varchar(255) not null unique,
-    pass varchar(10) not null,
+    pass varchar(30) not null,
     primary key (cod_usuario)
 ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_unicode_ci;
 
