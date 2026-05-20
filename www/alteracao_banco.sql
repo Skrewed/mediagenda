@@ -1,0 +1,1 @@
+ALTER TABLE especialidades ADD COLUMN cbo VARCHAR(20) DEFAULT NULL AFTER nome;
