@@ -170,3 +170,5 @@ CREATE OR REPLACE VIEW vw_medicos AS
         m.updated_at
     FROM medicos       m
     JOIN especialidades e ON e.id = m.especialidade_id;
+
+ALTER TABLE especialidades ADD COLUMN cbo VARCHAR(20) DEFAULT NULL AFTER nome;

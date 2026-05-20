@@ -23,6 +23,15 @@ if ($result && $consulta = mysqli_fetch_assoc($result)) {
 $operadorNome  = $nomeUsuario;
 $operadorEmail = $emailUsuario;
 
+/* ============================================================
+   CARREGAR LISTA CBO DO JSON
+============================================================ */
+$jsonCbo = file_get_contents('lista_cbo.json');
+$listaCbo = json_decode($jsonCbo, true);
+if (!$listaCbo) {
+    $listaCbo = []; // Fallback caso o arquivo não seja lido
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = isset($_POST['acao']) ? trim($_POST['acao']) : '';
     $acao = strtolower($acao);
@@ -31,13 +40,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($acao === 'novo' || $acao === 'editar') {
             $nome = trim($_POST['nome'] ?? '');
+            $cbo  = trim($_POST['cbo'] ?? ''); // NOVO CAMPO
             $id   = isset($_POST['id']) ? intval($_POST['id']) : 0;
+            
             if ($nome === '') {
                 throw new Exception('Nome da especialidade é obrigatório.');
             }
+            
             $nomeEsc = mysqli_real_escape_string($conexao_bd, $nome);
+            $cboEsc  = mysqli_real_escape_string($conexao_bd, $cbo); // NOVO CAMPO
+            
             if ($acao === 'novo') {
-                $sql = "INSERT INTO especialidades (nome) VALUES ('" . $nomeEsc . "')";
+                $sql = "INSERT INTO especialidades (nome, cbo) VALUES ('" . $nomeEsc . "', '" . $cboEsc . "')";
                 $resultExec = mysqli_query($conexao_bd, $sql);
                 if (!$resultExec) {
                     throw new Exception('Não foi possível criar a especialidade. ' . mysqli_error($conexao_bd));
@@ -47,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($id <= 0) {
                     throw new Exception('Especialidade inválida para edição.');
                 }
-                $sql = "UPDATE especialidades SET nome = '" . $nomeEsc . "' WHERE id = " . $id;
+                $sql = "UPDATE especialidades SET nome = '" . $nomeEsc . "', cbo = '" . $cboEsc . "' WHERE id = " . $id;
                 $resultExec = mysqli_query($conexao_bd, $sql);
                 if (!$resultExec) {
                     throw new Exception('Não foi possível atualizar a especialidade. ' . mysqli_error($conexao_bd));
@@ -75,23 +89,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $filtroNome = trim(isset($_GET['nome']) ? $_GET['nome'] : '');
+$filtroCbo  = trim(isset($_GET['cbo']) ? $_GET['cbo'] : ''); // NOVO FILTRO
 
 $especialidades = array();
 $where = array();
 $pageError = '';
+
 if ($filtroNome !== '') {
     $nomeEsc = mysqli_real_escape_string($conexao_bd, $filtroNome);
     $where[] = "e.nome LIKE '%" . $nomeEsc . "%'";
 }
 
-$sqlConsulta = "SELECT e.id, e.nome, COUNT(DISTINCT m.id) AS medico_count, COUNT(DISTINCT a.id) AS agenda_count"
+if ($filtroCbo !== '') {
+    $cboEsc = mysqli_real_escape_string($conexao_bd, $filtroCbo);
+    $where[] = "e.cbo = '" . $cboEsc . "'";
+}
+
+// ADICIONADO e.cbo NO SELECT
+$sqlConsulta = "SELECT e.id, e.nome, e.cbo, COUNT(DISTINCT m.id) AS medico_count, COUNT(DISTINCT a.id) AS agenda_count"
              . " FROM especialidades e"
              . " LEFT JOIN medicos m ON m.especialidade_id = e.id"
              . " LEFT JOIN agendamentos a ON a.especialidade_id = e.id";
 if (count($where) > 0) {
     $sqlConsulta .= " WHERE " . implode(' AND ', $where);
 }
-$sqlConsulta .= " GROUP BY e.id, e.nome ORDER BY e.nome ASC";
+$sqlConsulta .= " GROUP BY e.id, e.nome, e.cbo ORDER BY e.nome ASC";
 
 try {
     $resultEsp = mysqli_query($conexao_bd, $sqlConsulta);
@@ -414,6 +436,19 @@ try {
             <form method="GET" action="cadastro_especialidades.php">
                 <div class="row g-3">
                     <div class="col-md-6">
+                        <label for="filtroCbo">CBO</label>
+                        <select class="form-select form-select-sm" id="filtroCbo" name="cbo">
+                            <option value="" data-nome="">Todos</option>
+                            <?php foreach ($listaCbo as $itemCbo): ?>
+                                <option value="<?php echo htmlspecialchars($itemCbo['cod_cbo']); ?>" 
+                                    data-nome="<?php echo htmlspecialchars($itemCbo['nome_cbo']); ?>"
+                                    <?php echo ($filtroCbo === $itemCbo['cod_cbo']) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($itemCbo['cod_cbo']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
                         <label for="filtroNome">Nome da Especialidade</label>
                         <input type="text" class="form-control form-control-sm" id="filtroNome"
                                name="nome" placeholder="Ex: Cardiologia"
@@ -445,13 +480,14 @@ try {
                         <tr>
                             <th>#</th>
                             <th>Nome</th>
+                            <th>CBO</th>
                             <th class="text-center">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($especialidades)): ?>
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-4">
+                                <td colspan="4" class="text-center text-muted py-4">
                                     <i class="fa-solid fa-list-dots me-2"></i>Nenhuma especialidade encontrada.
                                 </td>
                             </tr>
@@ -459,12 +495,16 @@ try {
                             <?php foreach ($especialidades as $esp): ?>
                                 <tr>
                                     <td class="text-muted"><?php echo intval($esp['id']) ?></td>
+                                    
                                     <td><?php echo htmlspecialchars($esp['nome']) ?></td>
+                                    
+                                    <td><?php echo htmlspecialchars($esp['cbo'] ?? '-') ?></td>
                                     <td class="text-center" style="white-space: nowrap;">
                                         <button class="btn btn-sm btn-outline-primary py-0 px-2 btn-editar"
                                                 type="button"
                                                 data-id="<?php echo intval($esp['id']) ?>"
                                                 data-nome="<?php echo htmlspecialchars($esp['nome']) ?>"
+                                                data-cbo="<?php echo htmlspecialchars($esp['cbo'] ?? '') ?>"
                                                 title="Editar">
                                             <i class="fa-solid fa-pen"></i>
                                         </button>
@@ -506,12 +546,26 @@ try {
                 <form id="formEspecialidade" action="cadastro_especialidades.php" method="POST">
                     <input type="hidden" name="acao" id="formAcao" value="novo">
                     <input type="hidden" name="id" id="formId" value="">
+                    
                     <div class="modal-body">
                         <div class="mb-3">
+                            <label for="formCbo" class="form-label">Código CBO <span class="text-danger">*</span></label>
+                            <select class="form-select" id="formCbo" name="cbo" required>
+                                <option value="" data-nome="">Selecione...</option>
+                                <?php foreach ($listaCbo as $itemCbo): ?>
+                                    <option value="<?php echo htmlspecialchars($itemCbo['cod_cbo']); ?>" data-nome="<?php echo htmlspecialchars($itemCbo['nome_cbo']); ?>">
+                                        <?php echo htmlspecialchars($itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
                             <label for="formNome" class="form-label">Nome da especialidade <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="formNome" name="nome" placeholder="Ex: Cardiologia" required>
+                            <input type="text" class="form-control" id="formNome" name="nome" placeholder="Ex: Médico cardiologista" required>
                         </div>
                     </div>
+                    
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                         <button type="button" class="btn btn-primary" onclick="salvarEspecialidade()">
@@ -606,17 +660,44 @@ try {
             }
         });
 
+        // Evento que preenche o Nome da Especialidade automaticamente ao selecionar o CBO (Filtro)
+        document.getElementById('filtroCbo').addEventListener('change', function() {
+            var selectedOption = this.options[this.selectedIndex];
+            var nomeCbo = selectedOption.getAttribute('data-nome');
+            var inputNomeFiltro = document.getElementById('filtroNome');
+            
+            if (nomeCbo) {
+                inputNomeFiltro.value = nomeCbo;
+            } else {
+                inputNomeFiltro.value = ''; // Limpa se voltar para "Todos"
+            }
+        });
+
+        // Evento que preenche o Nome da Especialidade automaticamente ao selecionar o CBO (Modal de Cadastro)
+        document.getElementById('formCbo').addEventListener('change', function() {
+            var selectedOption = this.options[this.selectedIndex];
+            var nomeCbo = selectedOption.getAttribute('data-nome');
+            var inputNome = document.getElementById('formNome');
+            
+            if (nomeCbo) {
+                inputNome.value = nomeCbo;
+            } else {
+                inputNome.value = ''; // Limpa se voltar para "Selecione..."
+            }
+        });
+
         function resetarFormularioEspecialidade() {
             document.getElementById('modalFormTitulo').innerHTML = '<i class="fa-solid fa-plus me-2"></i>Nova Especialidade';
             document.getElementById('formAcao').value = 'novo';
             document.getElementById('formId').value = '';
-            document.getElementById('formNome').value = '';
+            document.getElementById('formCbo').value = '';
+            document.getElementById('formNome').value = ''; 
         }
 
         if (btnNovaEspecialidade) {
             btnNovaEspecialidade.addEventListener('click', function() {
                 resetarFormularioEspecialidade();
-                document.getElementById('formNome').focus();
+                document.getElementById('formCbo').focus();
             });
         }
 
@@ -628,6 +709,7 @@ try {
                 document.getElementById('modalFormTitulo').innerHTML = '<i class="fa-solid fa-pen me-2"></i>Editar Especialidade';
                 document.getElementById('formAcao').value = 'editar';
                 document.getElementById('formId').value = btnEditar.dataset.id;
+                document.getElementById('formCbo').value = btnEditar.dataset.cbo; 
                 document.getElementById('formNome').value = btnEditar.dataset.nome;
                 modalFormEspecialidade.show();
                 return;
