@@ -29,7 +29,7 @@ $operadorEmail = $emailUsuario;
 $jsonCbo = file_get_contents('lista_cbo.json');
 $listaCbo = json_decode($jsonCbo, true);
 if (!$listaCbo) {
-    $listaCbo = []; // Fallback caso o arquivo não seja lido
+    $listaCbo = []; // Fallback caso o ficheiro não seja lido
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -40,15 +40,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($acao === 'novo' || $acao === 'editar') {
             $nome = trim($_POST['nome'] ?? '');
-            $cbo  = trim($_POST['cbo'] ?? ''); // NOVO CAMPO
+            $cbo  = trim($_POST['cbo'] ?? ''); 
             $id   = isset($_POST['id']) ? intval($_POST['id']) : 0;
             
-            if ($nome === '') {
-                throw new Exception('Nome da especialidade é obrigatório.');
+            if ($nome === '' || $cbo === '') {
+                throw new Exception('Selecione uma especialidade válida da lista CBO.');
             }
             
             $nomeEsc = mysqli_real_escape_string($conexao_bd, $nome);
-            $cboEsc  = mysqli_real_escape_string($conexao_bd, $cbo); // NOVO CAMPO
+            $cboEsc  = mysqli_real_escape_string($conexao_bd, $cbo); 
             
             if ($acao === 'novo') {
                 $sql = "INSERT INTO especialidades (nome, cbo) VALUES ('" . $nomeEsc . "', '" . $cboEsc . "')";
@@ -88,24 +88,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-$filtroNome = trim(isset($_GET['nome']) ? $_GET['nome'] : '');
-$filtroCbo  = trim(isset($_GET['cbo']) ? $_GET['cbo'] : ''); // NOVO FILTRO
+// Filtro unificado de Busca
+$filtroBusca = trim(isset($_GET['busca']) ? $_GET['busca'] : '');
 
 $especialidades = array();
 $where = array();
 $pageError = '';
 
-if ($filtroNome !== '') {
-    $nomeEsc = mysqli_real_escape_string($conexao_bd, $filtroNome);
-    $where[] = "e.nome LIKE '%" . $nomeEsc . "%'";
+if ($filtroBusca !== '') {
+    // Se a busca vier com o formato do datalist (Ex: "225103 - Médico infectologista"), pega só o CBO
+    if (strpos($filtroBusca, ' - ') !== false) {
+        $partesBusca = explode(' - ', $filtroBusca);
+        $cboBusca = mysqli_real_escape_string($conexao_bd, $partesBusca[0]);
+        $where[] = "e.cbo = '" . $cboBusca . "'";
+    } else {
+        $buscaEsc = mysqli_real_escape_string($conexao_bd, $filtroBusca);
+        $where[] = "(e.nome LIKE '%" . $buscaEsc . "%' OR e.cbo LIKE '%" . $buscaEsc . "%')";
+    }
 }
 
-if ($filtroCbo !== '') {
-    $cboEsc = mysqli_real_escape_string($conexao_bd, $filtroCbo);
-    $where[] = "e.cbo = '" . $cboEsc . "'";
-}
-
-// ADICIONADO e.cbo NO SELECT
 $sqlConsulta = "SELECT e.id, e.nome, e.cbo, COUNT(DISTINCT m.id) AS medico_count, COUNT(DISTINCT a.id) AS agenda_count"
              . " FROM especialidades e"
              . " LEFT JOIN medicos m ON m.especialidade_id = e.id"
@@ -129,7 +130,7 @@ try {
 }
 ?>
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -376,6 +377,12 @@ try {
 </head>
 <body>
 
+    <datalist id="listaSugestoesCboCombinado">
+        <?php foreach ($listaCbo as $itemCbo): ?>
+            <option value="<?php echo htmlspecialchars($itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo']); ?>">
+        <?php endforeach; ?>
+    </datalist>
+
     <nav class="navbar-topo d-flex align-items-center justify-content-between px-3">
         <div class="d-flex align-items-center gap-2">
             <button class="btn-sanduiche" id="btnSanduiche" title="Menu">
@@ -433,26 +440,14 @@ try {
 
         <div class="card-pagina">
             <div class="card-titulo"><i class="fa-solid fa-magnifying-glass"></i> Filtros</div>
-            <form method="GET" action="cadastro_especialidades.php">
+            <form method="GET" action="cadastro_especialidades.php" id="formFiltro">
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label for="filtroCbo">CBO</label>
-                        <select class="form-select form-select-sm" id="filtroCbo" name="cbo">
-                            <option value="" data-nome="">Todos</option>
-                            <?php foreach ($listaCbo as $itemCbo): ?>
-                                <option value="<?php echo htmlspecialchars($itemCbo['cod_cbo']); ?>" 
-                                    data-nome="<?php echo htmlspecialchars($itemCbo['nome_cbo']); ?>"
-                                    <?php echo ($filtroCbo === $itemCbo['cod_cbo']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($itemCbo['cod_cbo']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="filtroNome">Nome da Especialidade</label>
-                        <input type="text" class="form-control form-control-sm" id="filtroNome"
-                               name="nome" placeholder="Ex: Cardiologia"
-                               value="<?php echo htmlspecialchars($filtroNome) ?>">
+                        <label for="filtroBusca">Código CBO</label>
+                        <input type="text" class="form-control form-control-sm" id="filtroBusca"
+                               name="busca" placeholder="Digite o CBO ou o nome da especialidade..."
+                               value="<?php echo htmlspecialchars($filtroBusca) ?>"
+                               list="listaSugestoesCboCombinado" autocomplete="off">
                     </div>
                 </div>
                 <div class="d-flex gap-2 mt-3">
@@ -470,7 +465,7 @@ try {
             <div class="card-titulo d-flex justify-content-between align-items-center">
                 <span><i class="fa-solid fa-table-list"></i> Especialidades</span>
                 <span id="contadorRegistros" class="text-muted" style="font-size:0.82rem; font-weight:400;">
-                    <?php echo count($especialidades) ?> registro(s) encontrado(s)
+                    <?php echo count($especialidades) ?> registo(s) encontrado(s)
                 </span>
             </div>
 
@@ -519,7 +514,7 @@ try {
                                             </button>
                                         <?php else: ?>
                                             <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" disabled
-                                                    title="Esta especialidade está vinculada a registros e não pode ser excluída">
+                                                    title="Esta especialidade está vinculada a registos e não pode ser excluída">
                                                 <i class="fa-solid fa-link"></i>
                                             </button>
                                         <?php endif; ?>
@@ -547,22 +542,15 @@ try {
                     <input type="hidden" name="acao" id="formAcao" value="novo">
                     <input type="hidden" name="id" id="formId" value="">
                     
+                    <input type="hidden" name="nome" id="formNomeHidden">
+                    <input type="hidden" name="cbo" id="formCboHidden">
+                    
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label for="formCbo" class="form-label">Código CBO <span class="text-danger">*</span></label>
-                            <select class="form-select" id="formCbo" name="cbo" required>
-                                <option value="" data-nome="">Selecione...</option>
-                                <?php foreach ($listaCbo as $itemCbo): ?>
-                                    <option value="<?php echo htmlspecialchars($itemCbo['cod_cbo']); ?>" data-nome="<?php echo htmlspecialchars($itemCbo['nome_cbo']); ?>">
-                                        <?php echo htmlspecialchars($itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="formNome" class="form-label">Nome da especialidade <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="formNome" name="nome" placeholder="Ex: Médico cardiologista" required>
+                            <label for="formBuscaCbo" class="form-label">Código CBO <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="formBuscaCbo" placeholder="Selecione ou digite o CBO..." list="listaSugestoesCboCombinado" autocomplete="off" required>
+                            
+                            <small id="msgErroForm" class="text-danger d-none fw-bold mt-1 d-block" style="font-size: 0.8rem;">Especialidade não existe.</small>
                         </div>
                     </div>
                     
@@ -602,7 +590,7 @@ try {
         if (serverErrorMessage) {
             Swal.fire({
                 icon: 'error',
-                title: 'Ops, algo deu errado!',
+                title: 'Ops, algo correu mal!',
                 text: serverErrorMessage,
                 confirmButtonText: 'Entendi'
             });
@@ -632,7 +620,7 @@ try {
             errorMessage = decodeURIComponent(errorMessage);
             Swal.fire({
                 icon: 'error',
-                title: 'Ops, algo deu errado!',
+                title: 'Ops, algo correu mal!',
                 text: errorMessage,
                 confirmButtonText: 'Entendi'
             });
@@ -660,44 +648,69 @@ try {
             }
         });
 
-        // Evento que preenche o Nome da Especialidade automaticamente ao selecionar o CBO (Filtro)
-        document.getElementById('filtroCbo').addEventListener('change', function() {
-            var selectedOption = this.options[this.selectedIndex];
-            var nomeCbo = selectedOption.getAttribute('data-nome');
-            var inputNomeFiltro = document.getElementById('filtroNome');
+        // =========================================================
+        // SCRIPTS DE AUTO-COMPLETAR E VERIFICAÇÃO DO CBO
+        // =========================================================
+
+        // Carrega todas as opções válidas do Datalist para um array Javascript
+        var datalistOptions = document.getElementById('listaSugestoesCboCombinado').options;
+        var arrayOpcoes = [];
+        for(var i=0; i<datalistOptions.length; i++) {
+            arrayOpcoes.push(datalistOptions[i].value);
+        }
+
+        // Lógica do Modal (Obrigatório escolher uma opção válida)
+        var formBuscaCbo   = document.getElementById('formBuscaCbo');
+        var formNomeHidden = document.getElementById('formNomeHidden');
+        var formCboHidden  = document.getElementById('formCboHidden');
+        var msgErroForm    = document.getElementById('msgErroForm');
+
+        formBuscaCbo.addEventListener('input', function() {
+            var val = this.value.trim();
             
-            if (nomeCbo) {
-                inputNomeFiltro.value = nomeCbo;
+            // Se o campo estiver vazio, limpa tudo e esconde erro
+            if (val === '') {
+                formCboHidden.value = '';
+                formNomeHidden.value = '';
+                msgErroForm.classList.add('d-none');
+                return;
+            }
+
+            // Verifica se o que foi escrito bate exatamente com uma das opções do datalist
+            if (arrayOpcoes.includes(val)) {
+                // Separa o CBO e o NOME (que estão no formato "225103 - Médico infectologista")
+                var parts = val.split(' - ');
+                formCboHidden.value = parts[0];
+                formNomeHidden.value = parts.slice(1).join(' - '); 
+                
+                msgErroForm.classList.add('d-none'); // Tudo certo, esconde o erro
             } else {
-                inputNomeFiltro.value = ''; // Limpa se voltar para "Todos"
+                // Se ainda não escolheu uma opção completa, limpa o campo oculto e mostra o erro
+                formCboHidden.value = '';
+                formNomeHidden.value = '';
+                msgErroForm.classList.remove('d-none');
             }
         });
 
-        // Evento que preenche o Nome da Especialidade automaticamente ao selecionar o CBO (Modal de Cadastro)
-        document.getElementById('formCbo').addEventListener('change', function() {
-            var selectedOption = this.options[this.selectedIndex];
-            var nomeCbo = selectedOption.getAttribute('data-nome');
-            var inputNome = document.getElementById('formNome');
-            
-            if (nomeCbo) {
-                inputNome.value = nomeCbo;
-            } else {
-                inputNome.value = ''; // Limpa se voltar para "Selecione..."
-            }
-        });
+        // =========================================================
+        // FUNÇÕES DO ECRÃ (ABRIR, EDITAR, SALVAR)
+        // =========================================================
 
         function resetarFormularioEspecialidade() {
             document.getElementById('modalFormTitulo').innerHTML = '<i class="fa-solid fa-plus me-2"></i>Nova Especialidade';
             document.getElementById('formAcao').value = 'novo';
             document.getElementById('formId').value = '';
-            document.getElementById('formCbo').value = '';
-            document.getElementById('formNome').value = ''; 
+            
+            formBuscaCbo.value = '';
+            formCboHidden.value = '';
+            formNomeHidden.value = ''; 
+            
+            msgErroForm.classList.add('d-none'); 
         }
 
         if (btnNovaEspecialidade) {
             btnNovaEspecialidade.addEventListener('click', function() {
                 resetarFormularioEspecialidade();
-                document.getElementById('formCbo').focus();
             });
         }
 
@@ -709,8 +722,23 @@ try {
                 document.getElementById('modalFormTitulo').innerHTML = '<i class="fa-solid fa-pen me-2"></i>Editar Especialidade';
                 document.getElementById('formAcao').value = 'editar';
                 document.getElementById('formId').value = btnEditar.dataset.id;
-                document.getElementById('formCbo').value = btnEditar.dataset.cbo; 
-                document.getElementById('formNome').value = btnEditar.dataset.nome;
+                
+                var cbo_salvo = btnEditar.dataset.cbo;
+                var nome_salvo = btnEditar.dataset.nome;
+                
+                formCboHidden.value = cbo_salvo; 
+                formNomeHidden.value = nome_salvo;
+                
+                // Preenche o campo visível consoante tenha ou não o CBO registado
+                if (cbo_salvo && cbo_salvo !== '-') {
+                    formBuscaCbo.value = cbo_salvo + ' - ' + nome_salvo;
+                    msgErroForm.classList.add('d-none');
+                } else {
+                    // Especialidades antigas sem CBO: força o utilizador a pesquisar a opção correta
+                    formBuscaCbo.value = nome_salvo;
+                    msgErroForm.classList.remove('d-none');
+                }
+                
                 modalFormEspecialidade.show();
                 return;
             }
@@ -735,10 +763,18 @@ try {
         });
 
         function salvarEspecialidade() {
+            // Só deixa guardar se a mensagem de erro estiver oculta (ou seja, se escolheu uma opção válida) e se o campo não estiver vazio
+            if (!msgErroForm.classList.contains('d-none') || formBuscaCbo.value.trim() === '') {
+                msgErroForm.classList.remove('d-none'); // Mostra o erro para ter a certeza
+                formBuscaCbo.focus();
+                return;
+            }
+
             if (!formEspecialidade.checkValidity()) {
                 formEspecialidade.reportValidity();
                 return;
             }
+            
             formEspecialidade.submit();
         }
     </script>
