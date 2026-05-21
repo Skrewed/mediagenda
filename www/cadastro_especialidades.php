@@ -441,30 +441,23 @@ try {
 
     <main class="conteudo-principal" id="conteudoPrincipal">
 
-        <div class="page-header">
-            <h2><i class="fa-solid fa-list-check"></i> Cadastro de Especialidades</h2>
-            <button id="btnNovaEspecialidade" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalFormEspecialidade">
-                <i class="fa-solid fa-plus me-1"></i> Nova Especialidade
-            </button>
-        </div>
-
         <div class="card-pagina">
             <div class="card-titulo"><i class="fa-solid fa-magnifying-glass"></i> Filtros</div>
             <form method="GET" action="cadastro_especialidades.php" id="formFiltro">
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label for="filtroBusca">Especialidade / CBO</label>
-                        <select class="form-select form-select-sm" id="filtroBusca" name="busca">
-                            <option value="">Todos</option>
+                        <input type="text" class="form-control form-control-sm" id="filtroBusca" name="busca" 
+                               list="listaFiltroCbo" placeholder="Todos (Digite para buscar...)" 
+                               value="<?php echo htmlspecialchars($filtroBusca); ?>" autocomplete="off">
+                        
+                        <datalist id="listaFiltroCbo">
                             <?php foreach ($listaCbo as $itemCbo): 
                                 $opcaoFormatada = $itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo'];
                             ?>
-                                <option value="<?php echo htmlspecialchars($opcaoFormatada); ?>"
-                                    <?php echo ($filtroBusca === $opcaoFormatada) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($opcaoFormatada); ?>
-                                </option>
+                                <option value="<?php echo htmlspecialchars($opcaoFormatada); ?>">
                             <?php endforeach; ?>
-                        </select>
+                        </datalist>
                     </div>
                 </div>
                 <div class="d-flex gap-2 mt-3">
@@ -478,6 +471,7 @@ try {
             </form>
         </div>
 
+        
         <div class="card-pagina">
             <div class="card-titulo d-flex justify-content-between align-items-center">
                 <span><i class="fa-solid fa-table-list"></i> Especialidades</span>
@@ -592,7 +586,7 @@ try {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
+   <script>
         var btnSanduiche      = document.getElementById('btnSanduiche');
         var sidebar           = document.getElementById('sidebar');
         var conteudoPrincipal = document.getElementById('conteudoPrincipal');
@@ -605,6 +599,26 @@ try {
         var formBuscaCbo   = document.getElementById('formBuscaCbo');
         var formNomeHidden = document.getElementById('formNomeHidden');
         var formCboHidden  = document.getElementById('formCboHidden');
+
+        // 1. Array com os CBOs já cadastrados no banco de dados
+        var cbosRegistrados = <?php echo json_encode(array_column($especialidades, 'cbo')); ?>;
+
+        // 2. Função para ocultar/exibir os CBOs na lista do Modal
+        function atualizarOpcoesCbo(cboPermitido = null) {
+            var options = formBuscaCbo.options;
+            for (var i = 1; i < options.length; i++) { // pula o índice 0 ("Selecione...")
+                var val = options[i].value;
+                var cboOption = val.split(' - ')[0]; // Pega apenas o número do CBO
+                
+                if (cbosRegistrados.includes(cboOption) && cboOption !== cboPermitido) {
+                    options[i].style.display = 'none';
+                    options[i].disabled = true;
+                } else {
+                    options[i].style.display = '';
+                    options[i].disabled = false;
+                }
+            }
+        }
 
         btnSanduiche.addEventListener('click', function() {
             if (window.innerWidth <= 991.98) {
@@ -640,6 +654,9 @@ try {
             formBuscaCbo.value = '';
             formCboHidden.value = '';
             formNomeHidden.value = ''; 
+            
+            // 3. Atualiza a lista escondendo os já cadastrados
+            atualizarOpcoesCbo(null);
         }
 
         if (btnNovaEspecialidade) {
@@ -662,6 +679,9 @@ try {
                 
                 formCboHidden.value = cbo_salvo; 
                 formNomeHidden.value = nome_salvo;
+                
+                // 4. Atualiza a lista permitindo o CBO que está sendo editado aparecer
+                atualizarOpcoesCbo(cbo_salvo);
                 
                 if (cbo_salvo && cbo_salvo !== '-') {
                     formBuscaCbo.value = cbo_salvo + ' - ' + nome_salvo;

@@ -172,3 +172,4 @@ CREATE OR REPLACE VIEW vw_medicos AS
     JOIN especialidades e ON e.id = m.especialidade_id;
 
 ALTER TABLE especialidades ADD COLUMN cbo VARCHAR(20) DEFAULT NULL AFTER nome;
+ALTER TABLE especialidades ADD COLUMN data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP;
