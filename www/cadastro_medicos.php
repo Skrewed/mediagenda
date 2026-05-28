@@ -40,10 +40,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($acao === 'novo' || $acao === 'editar') {
             $nome             = trim($_POST['nome'] ?? '');
             $crm              = trim($_POST['crm'] ?? '');
-            $especialidadeId  = isset($_POST['especialidade_id']) ? intval($_POST['especialidade_id']) : 0;
             $telefone         = trim($_POST['telefone'] ?? '');
             $email            = trim($_POST['email'] ?? '');
             $status           = isset($_POST['status']) && $_POST['status'] === 'Inativo' ? 'Inativo' : 'Ativo';
+            
+            // --- NOVA CAPTURA DE ESPECIALIDADES (ARRAY) ---
+            $especialidades   = isset($_POST['especialidades']) ? $_POST['especialidades'] : [];
 
             if ($nome === '') {
                 throw new Exception('Nome do médico é obrigatório.');
@@ -51,8 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($crm === '') {
                 throw new Exception('CRM do médico é obrigatório.');
             }
-            if ($especialidadeId <= 0) {
-                throw new Exception('Selecione uma especialidade válida.');
+            if (empty($especialidades)) {
+                throw new Exception('Selecione pelo menos uma especialidade.');
             }
 
             $nomeEsc      = mysqli_real_escape_string($conexao_bd, $nome);
@@ -62,12 +64,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $statusEsc    = mysqli_real_escape_string($conexao_bd, $status);
 
             if ($acao === 'novo') {
-                $sql = "INSERT INTO medicos (nome, crm, especialidade_id, telefone, email, status) VALUES ('" . $nomeEsc . "', '" . $crmEsc . "', " . $especialidadeId . ", '" . $telefoneEsc . "', '" . $emailEsc . "', '" . $statusEsc . "')";
+                // --- INSERT DO MÉDICO SEM A ESPECIALIDADE ---
+                $sql = "INSERT INTO medicos (nome, crm, telefone, email, status) VALUES ('" . $nomeEsc . "', '" . $crmEsc . "', '" . $telefoneEsc . "', '" . $emailEsc . "', '" . $statusEsc . "')";
                 $resultExec = mysqli_query($conexao_bd, $sql);
                 if (!$resultExec) {
                     throw new Exception('Não foi possível cadastrar o médico. ' . mysqli_error($conexao_bd));
                 }
+                
+                // --- INSERT NA TABELA PIVÔ ---
+                $novoMedicoId = mysqli_insert_id($conexao_bd);
+                foreach ($especialidades as $espId) {
+                    $espId = intval($espId);
+                    mysqli_query($conexao_bd, "INSERT INTO medico_especialidades (medico_id, especialidade_id) VALUES ($novoMedicoId, $espId)");
+                }
+                
                 $redirect .= '?alert=success&acao=novo';
+                
             } elseif ($acao === 'editar') {
                 $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
                 if ($id <= 0) {
@@ -85,11 +97,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw new Exception('Não foi possível verificar agendamentos futuros. ' . mysqli_error($conexao_bd));
                     }
                 }
-                $sql = "UPDATE medicos SET nome = '" . $nomeEsc . "', crm = '" . $crmEsc . "', especialidade_id = " . $especialidadeId . ", telefone = '" . $telefoneEsc . "', email = '" . $emailEsc . "', status = '" . $statusEsc . "' WHERE id = " . $id;
+                
+                // --- UPDATE DO MÉDICO SEM A ESPECIALIDADE ---
+                $sql = "UPDATE medicos SET nome = '" . $nomeEsc . "', crm = '" . $crmEsc . "', telefone = '" . $telefoneEsc . "', email = '" . $emailEsc . "', status = '" . $statusEsc . "' WHERE id = " . $id;
                 $resultExec = mysqli_query($conexao_bd, $sql);
                 if (!$resultExec) {
                     throw new Exception('Não foi possível atualizar o médico. ' . mysqli_error($conexao_bd));
                 }
+
+                // --- ATUALIZAÇÃO DA TABELA PIVÔ ---
+                mysqli_query($conexao_bd, "DELETE FROM medico_especialidades WHERE medico_id = $id");
+                foreach ($especialidades as $espId) {
+                    $espId = intval($espId);
+                    mysqli_query($conexao_bd, "INSERT INTO medico_especialidades (medico_id, especialidade_id) VALUES ($id, $espId)");
+                }
+
                 $redirect .= '?alert=success&acao=editar';
             }
         } elseif ($acao === 'excluir') {
@@ -140,24 +162,29 @@ if ($filtroNome !== '') {
     $nomeEsc = mysqli_real_escape_string($conexao_bd, $filtroNome);
     $where[] = "m.nome LIKE '%" . $nomeEsc . "%'";
 }
+// --- FILTRO COM A NOVA ESTRUTURA N:N ---
 if ($filtroEspecialidadeId !== '' && intval($filtroEspecialidadeId) > 0) {
-    $where[] = "m.especialidade_id = " . intval($filtroEspecialidadeId);
+    $where[] = "m.id IN (SELECT medico_id FROM medico_especialidades WHERE especialidade_id = " . intval($filtroEspecialidadeId) . ")";
 }
 if ($filtroStatus !== '') {
     $statusEsc = mysqli_real_escape_string($conexao_bd, $filtroStatus);
     $where[] = "m.status = '" . $statusEsc . "'";
 }
 
-$sqlConsulta = "SELECT m.id, m.nome, m.crm, e.id AS especialidade_id, e.nome AS especialidade, m.telefone, m.email, m.status, "
-             . "COUNT(a.id) AS agendamento_count, "
+// --- CONSULTA SQL ALTERADA COM GROUP_CONCAT E LEFT JOINs N:N ---
+$sqlConsulta = "SELECT m.id, m.nome, m.crm, m.telefone, m.email, m.status, "
+             . "GROUP_CONCAT(DISTINCT e.id SEPARATOR ',') AS especialidades_ids, "
+             . "GROUP_CONCAT(DISTINCT e.nome SEPARATOR ', ') AS especialidades_nomes, "
+             . "COUNT(DISTINCT a.id) AS agendamento_count, "
              . "SUM(CASE WHEN a.data >= CURDATE() THEN 1 ELSE 0 END) AS future_agendamento_count "
              . "FROM medicos m "
-             . "JOIN especialidades e ON e.id = m.especialidade_id "
+             . "LEFT JOIN medico_especialidades me ON me.medico_id = m.id "
+             . "LEFT JOIN especialidades e ON e.id = me.especialidade_id "
              . "LEFT JOIN agendamentos a ON a.medico_id = m.id";
 if (count($where) > 0) {
     $sqlConsulta .= " WHERE " . implode(' AND ', $where);
 }
-$sqlConsulta .= " GROUP BY m.id, m.nome, m.crm, e.id, e.nome, m.telefone, m.email, m.status ORDER BY m.nome ASC";
+$sqlConsulta .= " GROUP BY m.id, m.nome, m.crm, m.telefone, m.email, m.status ORDER BY m.nome ASC";
 
 $resultMedicos = mysqli_query($conexao_bd, $sqlConsulta);
 if ($resultMedicos) {
@@ -616,7 +643,7 @@ if ($resultEsp) {
                             <th>#</th>
                             <th>Nome</th>
                             <th>CRM</th>
-                            <th>Especialidade</th>
+                            <th>Especialidades</th>
                             <th>Telefone</th>
                             <th>E-mail</th>
                             <th>Status</th>
@@ -659,7 +686,8 @@ if ($resultEsp) {
                                     </div>
                                 </td>
                                 <td><?php echo htmlspecialchars($med['crm']) ?></td>
-                                <td><?php echo htmlspecialchars($med['especialidade']) ?></td>
+                                <!-- --- COLUNA DA NOVA ESPECIALIDADE --- -->
+                                <td><?php echo htmlspecialchars($med['especialidades_nomes'] ?? '') ?></td>
                                 <td><?php echo htmlspecialchars($med['telefone']) ?></td>
                                 <td><?php echo htmlspecialchars($med['email']) ?></td>
                                 <td><span class="badge-status <?php echo $classeBadge ?>"><?php echo htmlspecialchars($med['status']) ?></span></td>
@@ -669,8 +697,8 @@ if ($resultEsp) {
                                             data-id="<?php echo $med['id'] ?>"
                                             data-nome="<?php echo htmlspecialchars($med['nome']) ?>"
                                             data-crm="<?php echo htmlspecialchars($med['crm']) ?>"
-                                            data-especialidade="<?php echo htmlspecialchars($med['especialidade']) ?>"
-                                            data-especialidade-id="<?php echo intval($med['especialidade_id']) ?>"
+                                            data-especialidades-nomes="<?php echo htmlspecialchars($med['especialidades_nomes'] ?? '') ?>"
+                                            data-especialidades-ids="<?php echo htmlspecialchars($med['especialidades_ids'] ?? '') ?>"
                                             data-telefone="<?php echo htmlspecialchars($med['telefone']) ?>"
                                             data-email="<?php echo htmlspecialchars($med['email']) ?>"
                                             data-status="<?php echo htmlspecialchars($med['status']) ?>"
@@ -724,7 +752,7 @@ if ($resultEsp) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
 
-                            <form id="formMedico" action="cadastro_medicos.php" method="POST">
+                <form id="formMedico" action="cadastro_medicos.php" method="POST">
                     <input type="hidden" name="acao" id="formAcao" value="novo">
                     <input type="hidden" name="id"   id="formId"   value="">
                     <input type="hidden" id="formHasFutureAppointments" value="0">
@@ -741,16 +769,18 @@ if ($resultEsp) {
                                 <input type="text" class="form-control" id="formCrm" name="crm"
                                        placeholder="Ex: CRM/SP 12345" required>
                             </div>
+                            
+                            <!-- --- NOVO SELECT MÚLTIPLO DE ESPECIALIDADES --- -->
                             <div class="col-md-6">
-                                <label for="formEspecialidade">Especialidade <span class="text-danger">*</span></label>
-                                <select class="form-select" id="formEspecialidade" name="especialidade_id" required>
-                                    <option value="">Selecione...</option>
+                                <label for="formEspecialidade">Especialidades <span class="text-danger">*</span></label>
+                                <select class="form-select" id="formEspecialidade" name="especialidades[]" multiple required style="height: 100px;">
                                     <?php foreach ($especialidades as $esp): ?>
                                         <option value="<?php echo intval($esp['id']) ?>"><?php echo htmlspecialchars($esp['nome']) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <!-- Especialidades carregadas do banco de dados -->
+                                <small class="text-muted" style="font-size: 11px;">Segure CTRL para selecionar mais de uma.</small>
                             </div>
+                            
                             <div class="col-md-6">
                                 <label for="formTelefone">Telefone</label>
                                 <input type="text" class="form-control" id="formTelefone" name="telefone"
@@ -912,7 +942,14 @@ if ($resultEsp) {
                 document.getElementById('formId').value             = btnEditar.dataset.id;
                 document.getElementById('formNome').value           = btnEditar.dataset.nome;
                 document.getElementById('formCrm').value            = btnEditar.dataset.crm;
-                document.getElementById('formEspecialidade').value  = btnEditar.dataset.especialidadeId || '';
+                
+                // --- SELEÇÃO DE MÚLTIPLAS ESPECIALIDADES ---
+                var espIds = btnEditar.dataset.especialidadesIds ? btnEditar.dataset.especialidadesIds.split(',') : [];
+                var selectEsp = document.getElementById('formEspecialidade');
+                Array.from(selectEsp.options).forEach(function(opt) {
+                    opt.selected = espIds.includes(opt.value);
+                });
+
                 document.getElementById('formTelefone').value       = btnEditar.dataset.telefone;
                 document.getElementById('formEmail').value          = btnEditar.dataset.email;
                 document.getElementById('formStatus').value         = btnEditar.dataset.status;
