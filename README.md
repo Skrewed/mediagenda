@@ -115,7 +115,6 @@ login.php
 - André Felipe Andrade Oliveira – 251210008
 - Gabriel Henrique da Fraga Santos – 2412112804
 - Isaac Oliveira Ferreira de Sousa – 2412113877
-- Turiê Hermano de Oliveira – 2412113550
 - Vítor Hugo Moreira – 241211248
 - Walkíria Aparecida de Souza – 241210014
 
