@@ -321,6 +321,12 @@ if ($result) {
         .calendario-grade .dia.vazio {
             background: #f8f9fa;
         }
+        .calendario-grade .dia.fim-semana {
+            background: #fdeaea;
+        }
+        .calendario-grade .dia.fim-semana:hover {
+            background: #f8d7da;
+        }
         .calendario-grade .dia .numero {
             font-weight: 600;
             font-size: 0.95rem;
@@ -499,10 +505,14 @@ if ($result) {
 
                 // Loop pelos dias do mês
                 for ($dia = 1; $dia <= $totalDias; $dia++) {
+
                     $classeHoje = ($dia === $diaHoje && $mesAtual === $mesHoje && $anoAtual === $anoHoje) ? 'hoje' : '';
-                    ?>
-                    <div class="dia <?php echo $classeHoje ?>">
-                        <span class="numero"><?php echo $dia ?></span>
+
+                    $diaSemana = date('w', mktime(0, 0, 0, $mesAtual, $dia, $anoAtual));
+
+                    $classeFimSemana = ($diaSemana == 0 || $diaSemana == 6) ? 'fim-semana' : '';
+                ?>
+                <div class="dia <?php echo $classeHoje . ' ' . $classeFimSemana ?>">
 
                         <?php
                         /* ============================================================

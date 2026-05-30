@@ -53,6 +53,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $medico_id        = intval($_POST['medico_id'] ?? 0);
             $especialidade_id = intval($_POST['especialidade_id'] ?? 0);
             $data             = trim($_POST['data'] ?? '');
+            $diaSemana = date('w', strtotime($data));
+
+            //ALTERAÇÃO WALKIRIA
+            if ($diaSemana == 0 || $diaSemana == 6) {
+            throw new Exception('Não é permitido agendar aos finais de semana.');
+            }
+
             $horario          = trim($_POST['horario'] ?? '');
             $status           = trim($_POST['status'] ?? 'Pendente');
 
@@ -78,6 +85,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $medico_id        = intval($_POST['medico_id'] ?? 0);
             $especialidade_id = intval($_POST['especialidade_id'] ?? 0);
             $data             = trim($_POST['data'] ?? '');
+
+            //ALTERAÇÃO WALKIRIA
+            $diaSemana = date('w', strtotime($data));
+
+            if ($diaSemana == 0 || $diaSemana == 6) {
+            throw new Exception('Não é permitido agendar aos finais de semana.');
+            }
+
             $horario          = trim($_POST['horario'] ?? '');
             $status           = trim($_POST['status'] ?? 'Pendente');
 
@@ -1118,6 +1133,35 @@ if ($resMedicos) {
             var el = document.getElementById('contadorRegistros');
             if (el) el.textContent = total + ' registro(s) encontrado(s)';
         }
+
+//ALTERAÇÃO WALKIRIA
+// ==================================================
+// BLOQUEIA AGENDAMENTOS EM SÁBADOS E DOMINGOS
+// ==================================================
+document.getElementById('formData').addEventListener('change', function() {
+
+    const partes = this.value.split('-');
+
+    const ano = parseInt(partes[0]);
+    const mes = parseInt(partes[1]) - 1;
+    const dia = parseInt(partes[2]);
+
+    const dataSelecionada = new Date(ano, mes, dia, 12, 0, 0);
+
+    const diaSemana = dataSelecionada.getDay();
+
+    if (diaSemana === 0 || diaSemana === 6) {
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Data inválida',
+            text: 'Não é permitido realizar agendamentos aos finais de semana.'
+        });
+
+        this.value = '';
+    }
+});
+
     </script>
 </body>
 </html>
