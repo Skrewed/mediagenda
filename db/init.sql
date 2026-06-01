@@ -14,13 +14,29 @@ CREATE TABLE IF NOT EXISTS usuario (
     nome VARCHAR(150) NOT NULL,
     email VARCHAR(150) NOT NULL,
     username VARCHAR(255) NOT NULL UNIQUE,
-    pass VARCHAR(30) NOT NULL,
+    perfil VARCHAR(20) NOT NULL DEFAULT 'user',
+    pass VARCHAR(255) NOT NULL,
     PRIMARY KEY (cod_usuario)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO usuario (nome, email, username, pass) VALUES
-    ('aluno', 'aluno@a', 'aluno', '123456'),
-    ('professor', 'professor@a', 'professor', 'professor123');
+
+-- ============================================================
+-- SUPER USUÁRIO INICIAL
+-- ============================================================
+INSERT INTO usuario (nome, email, username, pass, perfil) VALUES
+    ('Administrador', 'admin@mediagenda.com', 'admin', '$2y$10$4SnRvd6aCpkYM5UdyUD3/O96w09EGCxx5DXQGuZxtfin8Z4p85fBK', 'admin');
+
+-- ============================================================
+-- TABELA: convite_usuario
+-- Cadastro de convites para novos usuários.
+-- ============================================================
+CREATE TABLE convite_usuario (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(50) NOT NULL UNIQUE,
+    perfil VARCHAR(20) NOT NULL,
+    usado TINYINT(1) DEFAULT 0,
+    criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
 -- ============================================================
 -- TABELA: especialidades

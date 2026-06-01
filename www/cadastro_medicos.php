@@ -10,13 +10,17 @@ if (!isset($_SESSION['cod_usuario'])) {
 $cod_usuario = intval($_SESSION['cod_usuario']);
 $nomeUsuario = "";
 $emailUsuario = "";
+$perfilUsuario = "";
+$pageError = '';
+
 $sql = "SELECT * FROM usuario WHERE cod_usuario = " . $cod_usuario;
 
 $result = mysqli_query($conexao_bd, $sql);
-$pageError = '';
+
 if ($result && $consulta = mysqli_fetch_assoc($result)) {
     $nomeUsuario  = $consulta['nome'];
     $emailUsuario = $consulta['email'];
+    $perfilUsuario = $consulta["perfil"];
 } elseif ($result === false) {
     $pageError = mysqli_error($conexao_bd);
 }
@@ -536,7 +540,7 @@ if ($resultEsp) {
                 <li><a class="dropdown-item" href="#"><i class="fa-solid fa-user"></i><?php echo htmlspecialchars($operadorNome) ?></a></li>
                 <li><a class="dropdown-item" href="#"><i class="fa-solid fa-envelope"></i><?php echo htmlspecialchars($operadorEmail) ?></a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="#"><i class="fa-solid fa-gear"></i>Configurações</a></li>
+                <li><a class="dropdown-item" href="config_usuarios.php"><i class="fa-solid fa-gear"></i>Configurações</a></li>
                 <li><a class="dropdown-item" href="logout.php"><i class="fa-solid fa-right-from-bracket"></i>Sair</a></li>
             </ul>
         </div>
@@ -559,6 +563,14 @@ if ($resultEsp) {
             <li class="nav-item">
                 <a class="nav-link" href="cadastro_especialidades.php"><i class="fa-solid fa-list-check"></i> Cadastro de Especialidades</a>
             </li>
+            <?php if ($perfilUsuario == "admin") { ?>
+                <li class="nav-item">
+                    <a class="nav-link" href="admin_usuarios.php">
+                        <i class="fa-solid fa-users"></i>
+                        Administração de Usuários
+                    </a>
+                </li>
+            <?php } ?>
         </ul>
     </aside>
 

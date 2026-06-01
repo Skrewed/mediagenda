@@ -5,6 +5,7 @@ if (isset($_SESSION['cod_usuario']) && intval($_SESSION['cod_usuario']) > 0) {
     exit;
 }
 $loginError = isset($_GET['erro']) && $_GET['erro'] === 'login';
+$cadastroSucesso = isset($_GET['sucesso']) && $_GET['sucesso'] === 'cadastro';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -111,6 +112,20 @@ $loginError = isset($_GET['erro']) && $_GET['erro'] === 'login';
         .login-footer a:hover {
             text-decoration: underline;
         }
+
+        .swal-mediagenda-popup {
+            border-radius: 24px !important;
+        }
+
+        .swal-mediagenda-button {
+            border-radius: 14px !important;
+            padding: 0.85rem 1rem !important;
+            font-weight: 600 !important;
+            font-size: 0.98rem !important;
+            background-color: #0d6efd !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
     </style>
 </head>
 <body>
@@ -136,6 +151,10 @@ $loginError = isset($_GET['erro']) && $_GET['erro'] === 'login';
                     <button type="submit" class="btn btn-primary w-100 btn-auth">
                         <i class="fa-solid fa-right-to-bracket me-2"></i>Entrar no sistema
                     </button>
+                    <a href="cadastro_usuarios.php" class="btn btn-outline-primary btn-auth w-100 mt-2">
+                        <i class="fa-solid fa-user-plus me-2"></i>
+                        Criar Conta
+                    </a>
                 </form>
             </div>
         </section>
@@ -144,12 +163,27 @@ $loginError = isset($_GET['erro']) && $_GET['erro'] === 'login';
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         var loginError = <?php echo json_encode($loginError ? true : false); ?>;
+        var cadastroSucesso = <?php echo json_encode($cadastroSucesso ? true : false); ?>;
+
         if (loginError) {
             Swal.fire({
                 icon: 'error',
                 title: 'Falha no login',
                 text: 'Usuário ou senha incorretos. Tente novamente.',
                 confirmButtonText: 'Entendi'
+            });
+        }
+        if (cadastroSucesso) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Cadastro concluído',
+                text: 'Faça login para continuar.',
+                confirmButtonText: 'Entendi',
+                confirmButtonColor: '#0d6efd',
+                customClass: {
+                    popup: 'swal-mediagenda-popup',
+                    confirmButton: 'swal-mediagenda-button'
+                }
             });
         }
 

@@ -22,7 +22,7 @@
             $nome        = $consulta['nome'];
             $password    = $consulta['pass'];
 
-            if (strtoupper(trim($senha)) === strtoupper(trim($password))) {
+            if (password_verify($senha, $password)) {
                 $_SESSION["cod_usuario"] = $cod_usuario;
                 header("Location: principal.php");
                 exit;
