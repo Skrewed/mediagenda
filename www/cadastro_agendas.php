@@ -64,8 +64,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $horario          = trim($_POST['horario'] ?? '');
             $status           = trim($_POST['status'] ?? 'Pendente');
 
+            // Validação de horário: apenas entre 7h e 17h
+            $horarioParts = explode(':', $horario);
+            if (count($horarioParts) === 2) {
+                $horaAgendamento = intval($horarioParts[0]);
+                $minutoAgendamento = intval($horarioParts[1]);
+                $totalMinutosAgendamento = $horaAgendamento * 60 + $minutoAgendamento;
+                
+                $horarioAbertura = 7 * 60;  // 07:00
+                $horarioFechamento = 17 * 60; // 17:00
+                
+                if ($totalMinutosAgendamento < $horarioAbertura || $totalMinutosAgendamento >= $horarioFechamento) {
+                    throw new Exception('Agendamentos apenas entre 07:00 e 17:00.');
+                }
+            }
+
             if ($paciente === '' || $medico_id <= 0 || $especialidade_id <= 0 || $data === '' || $horario === '') {
                 throw new Exception('Preencha todos os campos obrigatórios do agendamento.');
+            }
+
+            $sqlMedicoStatus = "SELECT status FROM medicos WHERE id = " . $medico_id;
+            $resultMedicoStatus = mysqli_query($conexao_bd, $sqlMedicoStatus);
+            if (!$resultMedicoStatus || mysqli_num_rows($resultMedicoStatus) === 0) {
+                throw new Exception('Médico inválido para agendamento.');
+            }
+            $medicoRow = mysqli_fetch_assoc($resultMedicoStatus);
+            if ($medicoRow['status'] !== 'Ativo') {
+                throw new Exception('Não é permitido agendar para médico inativo.');
             }
 
             $pacienteEsc  = mysqli_real_escape_string($conexao_bd, $paciente);
@@ -108,11 +133,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $horario          = trim($_POST['horario'] ?? '');
             $status           = trim($_POST['status'] ?? 'Pendente');
 
+            // Validação de horário: apenas entre 7h e 17h
+            $horarioParts = explode(':', $horario);
+            if (count($horarioParts) === 2) {
+                $horaAgendamento = intval($horarioParts[0]);
+                $minutoAgendamento = intval($horarioParts[1]);
+                $totalMinutosAgendamento = $horaAgendamento * 60 + $minutoAgendamento;
+                
+                $horarioAbertura = 7 * 60;  // 07:00
+                $horarioFechamento = 17 * 60; // 17:00
+                
+                if ($totalMinutosAgendamento < $horarioAbertura || $totalMinutosAgendamento >= $horarioFechamento) {
+                    throw new Exception('Agendamentos apenas entre 07:00 e 17:00.');
+                }
+            }
+
             if ($id_agenda <= 0) {
                 throw new Exception('Agendamento inválido para edição.');
             }
             if ($paciente === '' || $medico_id <= 0 || $especialidade_id <= 0 || $data === '' || $horario === '') {
                 throw new Exception('Preencha todos os campos obrigatórios do agendamento.');
+            }
+
+            $sqlMedicoStatus = "SELECT status FROM medicos WHERE id = " . $medico_id;
+            $resultMedicoStatus = mysqli_query($conexao_bd, $sqlMedicoStatus);
+            if (!$resultMedicoStatus || mysqli_num_rows($resultMedicoStatus) === 0) {
+                throw new Exception('Médico inválido para agendamento.');
+            }
+            $medicoRow = mysqli_fetch_assoc($resultMedicoStatus);
+            if ($medicoRow['status'] !== 'Ativo') {
+                throw new Exception('Não é permitido agendar para médico inativo.');
             }
 
             $pacienteEsc  = mysqli_real_escape_string($conexao_bd, $paciente);
@@ -131,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($id_agenda <= 0) {
                 throw new Exception('Agendamento inválido para cancelamento.');
             }
-            $sql = "DELETE FROM agendamentos WHERE id = " . $id_agenda;
+            $sql = "UPDATE agendamentos SET status = 'Cancelado' WHERE id = " . $id_agenda;
             $resultExec = mysqli_query($conexao_bd, $sql);
             if (!$resultExec) {
                 throw new Exception('Não foi possível cancelar o agendamento. ' . mysqli_error($conexao_bd));
@@ -249,6 +299,15 @@ $resMedicos = mysqli_query($conexao_bd, $sqlMedicos);
 if ($resMedicos) {
     while ($row = mysqli_fetch_assoc($resMedicos)) {
         $medicos[] = $row;
+    }
+}
+
+$medicosAtivos = [];
+$sqlMedicosAtivos = "SELECT id, nome FROM medicos WHERE status = 'Ativo' ORDER BY nome ASC";
+$resMedicosAtivos = mysqli_query($conexao_bd, $sqlMedicosAtivos);
+if ($resMedicosAtivos) {
+    while ($row = mysqli_fetch_assoc($resMedicosAtivos)) {
+        $medicosAtivos[] = $row;
     }
 }
 ?>
@@ -529,6 +588,13 @@ if ($resMedicos) {
             font-size: 0.88rem;
             margin-bottom: 4px;
         }
+        .modal-footer .btn {
+            padding: 0.5rem 1rem;
+            min-height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -704,9 +770,7 @@ if ($resMedicos) {
                                     <?php $agendamentoExpirado = ($ag['data'] < date('Y-m-d')); ?>
 
                                     <button
-                                            class="btn btn-sm py-0 px-2 btn-editar
-                                            // Se o agendamento já passou da data atual, desabilita o botão de editar
-                                            <?= $agendamentoExpirado ? 'btn-secondary disabled' : 'btn-outline-primary' ?>"
+                                            class="btn btn-sm <?= $agendamentoExpirado ? 'btn-secondary disabled' : 'btn-outline-primary' ?> btn-editar"
 
                                             title="Editar"
                                             data-id="<?php echo $ag['id'] ?>"
@@ -720,7 +784,7 @@ if ($resMedicos) {
                                             data-status="<?php echo htmlspecialchars($ag['status']) ?>">
                                         <i class="fa-solid fa-pen"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger py-0 px-2 btn-cancelar"
+                                    <button class="btn btn-sm btn-outline-danger btn-cancelar"
                                             title="Cancelar agendamento"
                                             data-id="<?php echo $ag['id'] ?>"
                                             data-paciente="<?php echo htmlspecialchars($ag['paciente']) ?>">
@@ -774,7 +838,7 @@ if ($resMedicos) {
                                 <select class="form-select" id="formMedico" 
                                  name="medico_id" required>
                                     <option value="">Selecione...</option>
-                                    <?php foreach ($medicos as $m): ?>
+                                    <?php foreach ($medicosAtivos as $m): ?>
                                         <option value="<?php echo $m['id'] ?>"><?php echo htmlspecialchars($m['nome']) ?></option>
                                     <?php endforeach; ?>
                                 </select>
@@ -800,7 +864,6 @@ if ($resMedicos) {
                                 <select class="form-select" id="formStatus" name="status">
                                     <option value="Pendente">Pendente</option>
                                     <option value="Confirmado">Confirmado</option>
-                                    <option value="Cancelado">Cancelado</option>
                                 </select>
                             </div>
                         </div>
@@ -952,6 +1015,12 @@ if ($resMedicos) {
                 document.getElementById('formId').value   = '';
                 document.getElementById('formAgenda').reset();
                 document.getElementById('formEspecialidade').innerHTML = '<option value="">Selecione um médico primeiro...</option>';
+
+                var selectStatus = document.getElementById('formStatus');
+                var optionCancelado = selectStatus.querySelector('option[value="Cancelado"]');
+                if (optionCancelado) {
+                    optionCancelado.remove();
+                }
             }
             modoEdicao = false;
         });
@@ -972,14 +1041,21 @@ if ($resMedicos) {
                 document.getElementById('formPaciente').value      = btnEditar.dataset.paciente;
                 document.getElementById('formData').value          = btnEditar.dataset.data;
                 document.getElementById('formHorario').value       = btnEditar.dataset.horario;
-                document.getElementById('formStatus').value        = btnEditar.dataset.status;
+                
+                // Preenche o médico e carrega as especialidades
+                document.getElementById('formMedico').value = btnEditar.dataset.medicoId;
+                carregarEspecialidades(btnEditar.dataset.medicoId, btnEditar.dataset.especialidadeId);
 
-                var medicoId = btnEditar.dataset.medicoId;
-                document.getElementById('formMedico').value        = medicoId;
-
-                // Carrega as especialidades via Fetch e seleciona a que já estava no banco
-                carregarEspecialidades(medicoId, btnEditar.dataset.especialidadeId);
-
+                var selectStatus = document.getElementById('formStatus');
+                if (!Array.from(selectStatus.options).some(function(opt) { return opt.value === 'Cancelado'; })) {
+                    var optionCancelado = document.createElement('option');
+                    optionCancelado.value = 'Cancelado';
+                    optionCancelado.textContent = 'Cancelado';
+                    selectStatus.appendChild(optionCancelado);
+                }
+                selectStatus.value = btnEditar.dataset.status;
+                
+                // Abre o modal
                 modalFormAgenda.show();
             }
 
@@ -1184,6 +1260,36 @@ document.getElementById('formData').addEventListener('change', function() {
             text: 'Não é permitido realizar agendamentos aos finais de semana.'
         });
 
+        this.value = '';
+    }
+});
+
+// ==================================================
+// BLOQUEIA AGENDAMENTOS FORA DO HORÁRIO DE FUNCIONAMENTO
+// ==================================================
+document.getElementById('formHorario').addEventListener('change', function() {
+    const horarioSelecionado = this.value;
+    
+    if (horarioSelecionado === '') {
+        return;
+    }
+    
+    const partes = horarioSelecionado.split(':');
+    const hora = parseInt(partes[0]);
+    const minuto = parseInt(partes[1]);
+    
+    // Converte para minutos desde a meia-noite para comparação
+    const totalMinutos = hora * 60 + minuto;
+    const horarioAbertura = 7 * 60;  // 07:00
+    const horarioFechamento = 17 * 60; // 17:00
+    
+    if (totalMinutos < horarioAbertura || totalMinutos >= horarioFechamento) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Horário inválido',
+            text: 'Agendamentos apenas entre 07:00 e 17:00.'
+        });
+        
         this.value = '';
     }
 });

@@ -43,13 +43,16 @@ CREATE TABLE convite_usuario (
 -- Cadastro de especialidades médicas.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS especialidades (
-    id         INT          UNSIGNED NOT NULL AUTO_INCREMENT,
-    nome       VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    id            INT          UNSIGNED NOT NULL AUTO_INCREMENT,
+    nome          VARCHAR(100) NOT NULL,
+    cbo           VARCHAR(20)  NOT NULL,
+    status        ENUM('Ativo','Inativo') NOT NULL DEFAULT 'Ativo',
+    data_criacao  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
-    UNIQUE KEY uq_especialidade_nome (nome)
+    UNIQUE KEY uq_especialidade_nome (nome),
+    UNIQUE KEY uq_especialidade_cbo (cbo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
@@ -125,13 +128,70 @@ CREATE TABLE IF NOT EXISTS agendamentos (
 -- ============================================================
 -- DADOS INICIAIS: especialidades
 -- ============================================================
-INSERT INTO especialidades (id, nome) VALUES
-    (1, 'Cardiologia'),
-    (2, 'Dermatologia'),
-    (3, 'Ginecologia'),
-    (4, 'Neurologia'),
-    (5, 'Ortopedia'),
-    (6, 'Pediatria');
+INSERT INTO especialidades (id, nome, cbo, status) VALUES
+    (1, 'Médico infectologista', '225103', 'Ativo'),
+    (2, 'Médico acupunturista', '225105', 'Ativo'),
+    (3, 'Médico legista', '225106', 'Ativo'),
+    (4, 'Médico nefrologista', '225109', 'Ativo'),
+    (5, 'Médico alergista e imunologista', '225110', 'Ativo'),
+    (6, 'Médico neurologista', '225112', 'Ativo'),
+    (7, 'Médico angiologista', '225115', 'Ativo'),
+    (8, 'Médico nutrologista', '225118', 'Ativo'),
+    (9, 'Médico cardiologista', '225120', 'Ativo'),
+    (10, 'Médico oncologista clínico', '225121', 'Ativo'),
+    (11, 'Médico cancerologista pediátrico', '225122', 'Ativo'),
+    (12, 'Médico pediatra', '225124', 'Ativo'),
+    (13, 'Médico clínico', '225125', 'Ativo'),
+    (14, 'Médico pneumologista', '225127', 'Ativo'),
+    (15, 'Médico de família e comunidade', '225130', 'Ativo'),
+    (16, 'Médico psiquiatra', '225133', 'Ativo'),
+    (17, 'Médico dermatologista', '225135', 'Ativo'),
+    (18, 'Médico reumatologista', '225136', 'Ativo'),
+    (19, 'Médico sanitarista', '225139', 'Ativo'),
+    (20, 'Médico do trabalho', '225140', 'Ativo'),
+    (21, 'Médico da estratégia de saúde da família', '225142', 'Ativo'),
+    (22, 'Médico em medicina de tráfego', '225145', 'Ativo'),
+    (23, 'Médico anatomopatologista', '225148', 'Ativo'),
+    (24, 'Médico em medicina intensiva', '225150', 'Ativo'),
+    (25, 'Médico anestesiologista', '225151', 'Ativo'),
+    (26, 'Médico antroposófico', '225154', 'Ativo'),
+    (27, 'Médico endocrinologista e metabologista', '225155', 'Ativo'),
+    (28, 'Médico fisiatra', '225160', 'Ativo'),
+    (29, 'Médico gastroenterologista', '225165', 'Ativo'),
+    (30, 'Médico generalista', '225170', 'Ativo'),
+    (31, 'Médico geneticista', '225175', 'Ativo'),
+    (32, 'Médico geriatra', '225180', 'Ativo'),
+    (33, 'Médico hematologista', '225185', 'Ativo'),
+    (34, 'Médico homeopata', '225195', 'Ativo'),
+    (35, 'Médico em cirurgia vascular', '225203', 'Ativo'),
+    (36, 'Médico cirurgião cardiovascular', '225210', 'Ativo'),
+    (37, 'Médico cirurgião de cabeça e pescoço', '225215', 'Ativo'),
+    (38, 'Médico cirurgião do aparelho digestivo', '225220', 'Ativo'),
+    (39, 'Médico cirurgião geral', '225225', 'Ativo'),
+    (40, 'Médico cirurgião pediátrico', '225230', 'Ativo'),
+    (41, 'Médico cirurgião plástico', '225235', 'Ativo'),
+    (42, 'Médico cirurgião torácico', '225240', 'Ativo'),
+    (43, 'Médico ginecologista e obstetra', '225250', 'Ativo'),
+    (44, 'Médico mastologista', '225255', 'Ativo'),
+    (45, 'Médico neurocirurgião', '225260', 'Ativo'),
+    (46, 'Médico oftalmologista', '225265', 'Ativo'),
+    (47, 'Médico ortopedista e traumatologista', '225270', 'Ativo'),
+    (48, 'Médico otorrinolaringologista', '225275', 'Ativo'),
+    (49, 'Médico coloproctologista', '225280', 'Ativo'),
+    (50, 'Médico urologista', '225285', 'Ativo'),
+    (51, 'Médico cancerologista cirurgíco', '225290', 'Ativo'),
+    (52, 'Médico cirurgião da mão', '225295', 'Ativo'),
+    (53, 'Médico citopatologista', '225305', 'Ativo'),
+    (54, 'Médico em endoscopia', '225310', 'Ativo'),
+    (55, 'Médico em medicina nuclear', '225315', 'Ativo'),
+    (56, 'Médico em radiologia e diagnóstico por imagem', '225320', 'Ativo'),
+    (57, 'Médico patologista', '225325', 'Ativo'),
+    (58, 'Médico radioterapeuta', '225330', 'Ativo'),
+    (59, 'Médico patologista clínico / medicina laboratorial', '225335', 'Ativo'),
+    (60, 'Médico hemoterapeuta', '225340', 'Ativo'),
+    (61, 'Médico hiperbarista', '225345', 'Ativo'),
+    (62, 'Médico neurofisiologista clínico', '225350', 'Ativo'),
+    (63, 'Médico radiologista intervencionista', '225355', 'Ativo');
 
 -- ============================================================
 -- DADOS INICIAIS: medicos
@@ -148,28 +208,28 @@ INSERT INTO medicos (id, nome, crm, telefone, email, status) VALUES
 -- DADOS INICIAIS: Vínculo Médico x Especialidade
 -- ============================================================
 INSERT INTO medico_especialidades (medico_id, especialidade_id) VALUES
-    (1, 1), -- Carlos Lima: Cardiologia
-    (2, 2), -- Ana Paula: Dermatologia
-    (3, 5), -- Pedro Alves: Ortopedia
-    (4, 6), -- Marina Reis: Pediatria
-    (5, 4), -- Ricardo Souza: Neurologia
-    (6, 3); -- Fernanda Melo: Ginecologia
+    (1, 1), -- Carlos Lima: infectologista
+    (2, 2), -- Ana Paula: acupunturista
+    (3, 5), -- Pedro Alves: alergista e imunologista
+    (4, 6), -- Marina Reis: neurologista
+    (5, 4), -- Ricardo Souza: nefrologista
+    (6, 3); -- Fernanda Melo: legista
 
 -- ============================================================
 -- DADOS INICIAIS: agendamentos
 -- ============================================================
 INSERT INTO agendamentos (id, paciente, medico_id, especialidade_id, data, horario, status) VALUES
-    ( 1, 'Maria Souza',     1, 1, '2026-04-05', '09:00', 'Confirmado'),
-    ( 2, 'Carlos Andrade',  2, 2, '2026-04-08', '10:30', 'Confirmado'),
-    ( 3, 'Juliana Reis',    3, 5, '2026-04-08', '14:00', 'Pendente'),
-    ( 4, 'Pedro Henrique',  2, 2, '2026-04-12', '08:00', 'Confirmado'),
-    ( 5, 'Júlia Mendes',    1, 1, '2026-04-15', '11:00', 'Confirmado'),
-    ( 6, 'Roberto Dias',    3, 5, '2026-04-15', '15:30', 'Confirmado'),
-    ( 7, 'Fernanda Costa',  4, 6, '2026-04-15', '16:30', 'Pendente'),
-    ( 8, 'Lucas Silva',     1, 1, '2026-04-15', '17:30', 'Confirmado'),
-    ( 9, 'Luiz Henrique',   4, 6, '2026-04-20', '09:30', 'Confirmado'),
-    (10, 'Beatriz Ramos',   2, 2, '2026-04-23', '10:00', 'Pendente'),
-    (11, 'Marcos Vinícius', 3, 5, '2026-04-27', '14:00', 'Confirmado');
+    ( 1, 'Maria Souza',     1, 1, '2026-06-05', '09:00', 'Confirmado'),
+    ( 2, 'Carlos Andrade',  2, 2, '2026-06-08', '10:30', 'Confirmado'),
+    ( 3, 'Juliana Reis',    3, 5, '2026-06-08', '14:00', 'Pendente'),
+    ( 4, 'Pedro Henrique',  2, 2, '2026-06-12', '08:00', 'Confirmado'),
+    ( 5, 'Júlia Mendes',    1, 1, '2026-06-15', '11:00', 'Confirmado'),
+    ( 6, 'Roberto Dias',    3, 5, '2026-06-15', '15:30', 'Confirmado'),
+    ( 7, 'Fernanda Costa',  4, 6, '2026-06-15', '16:30', 'Pendente'),
+    ( 8, 'Lucas Silva',     1, 1, '2026-06-15', '17:30', 'Confirmado'),
+    ( 9, 'Luiz Henrique',   4, 6, '2026-06-19', '09:30', 'Confirmado'),
+    (10, 'Beatriz Ramos',   2, 2, '2026-06-23', '10:00', 'Pendente'),
+    (11, 'Marcos Vinícius', 3, 5, '2026-06-26', '14:00', 'Confirmado');
 
 -- ============================================================
 -- VIEWS ÚTEIS
@@ -208,8 +268,3 @@ CREATE OR REPLACE VIEW vw_medicos AS
     LEFT JOIN especialidades e ON me.especialidade_id = e.id
     GROUP BY m.id;
 
--- ============================================================
--- ALTERAÇÕES EXTRAS (Mantidas conforme o original)
--- ============================================================
-ALTER TABLE especialidades ADD COLUMN cbo VARCHAR(20) DEFAULT NULL AFTER nome;
-ALTER TABLE especialidades ADD COLUMN data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP;

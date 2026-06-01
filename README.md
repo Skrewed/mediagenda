@@ -106,10 +106,17 @@ configure:
 
 ## 3️⃣ Executar o projeto
 
-Abra o projeto em um servidor PHP e acesse:
+Abra o projeto em um servidor PHP e localhost. Você será redirecionado para:
 
 ```text
-login.php
+localhost/login.php
+```
+
+Durante a criação do banco, foi incluído manualmente um usuário Administrador:
+
+```text
+Login: admin
+Senha: admin123
 ```
 
 ---
@@ -142,14 +149,14 @@ Este projeto possui finalidade educacional e foi desenvolvido como atividade pr�
 
 # 💻 Tecnologias Utilizadas
 
-| Tecnologia    | Finalidade        |
-|---------------|-------------------|
-| PHP           | Back-end          |
-| MySQL/MariaDB | Banco de dados    |
-| Bootstrap     | Interface         |
-| JavaScript    | Interatividade    |
-| SweetAlert2   | Alertas modernos  |
-| Git/GitHub    | Versionamento     |
+| Tecnologia    | Finalidade       |
+| ------------- | ---------------- |
+| PHP           | Back-end         |
+| MySQL/MariaDB | Banco de dados   |
+| Bootstrap     | Interface        |
+| JavaScript    | Interatividade   |
+| SweetAlert2   | Alertas modernos |
+| Git/GitHub    | Versionamento    |
 
 ---
 

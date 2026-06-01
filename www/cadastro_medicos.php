@@ -206,7 +206,7 @@ if ($resultMedicos) {
    Carrega do banco de dados.
 ============================================================ */
 $especialidades = array();
-$sqlEsp = "SELECT id, nome FROM especialidades ORDER BY nome";
+$sqlEsp = "SELECT id, nome, cbo FROM especialidades ORDER BY nome";
 $resultEsp = mysqli_query($conexao_bd, $sqlEsp);
 if ($resultEsp) {
     while ($row = mysqli_fetch_assoc($resultEsp)) {
@@ -611,7 +611,7 @@ if ($resultEsp) {
                             <?php foreach ($especialidades as $esp): ?>
                                 <option value="<?php echo intval($esp['id']) ?>"
                                     <?php echo ($filtroEspecialidadeId === strval($esp['id'])) ? 'selected' : '' ?>>
-                                    <?php echo htmlspecialchars($esp['nome']) ?>
+                                    <?php echo htmlspecialchars($esp['nome'] . ' (' . $esp['cbo'] . ')') ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -724,6 +724,11 @@ if ($resultEsp) {
                                                 data-nome="<?php echo htmlspecialchars($med['nome']) ?>">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
+                                    <?php else: ?>
+                                        <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" disabled
+                                                title="Este médico possui agendamentos vinculados e não pode ser excluído">
+                                            <i class="fa-solid fa-link"></i>
+                                        </button>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -787,7 +792,7 @@ if ($resultEsp) {
                                 <label for="formEspecialidade">Especialidades <span class="text-danger">*</span></label>
                                 <select class="form-select" id="formEspecialidade" name="especialidades[]" multiple required style="height: 100px;">
                                     <?php foreach ($especialidades as $esp): ?>
-                                        <option value="<?php echo intval($esp['id']) ?>"><?php echo htmlspecialchars($esp['nome']) ?></option>
+                                        <option value="<?php echo intval($esp['id']) ?>"><?php echo htmlspecialchars($esp['nome'] . ' (' . $esp['cbo'] . ')') ?></option>
                                     <?php endforeach; ?>
                                 </select>
                                 <small class="text-muted" style="font-size: 11px;">Segure CTRL para selecionar mais de uma.</small>
