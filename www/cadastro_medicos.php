@@ -466,6 +466,15 @@ if ($resultEsp) {
             border-bottom: none;
         }
 
+        .btn-icon-sm {
+            min-width: 36px;
+            padding: 0.32rem 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
         /* ==================== BADGES DE STATUS ==================== */
         .badge-status {
             display: inline-block;
@@ -511,6 +520,64 @@ if ($resultEsp) {
             font-weight: 500;
             font-size: 0.88rem;
             margin-bottom: 4px;
+        }
+        .especialidades-multi {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            min-height: 44px;
+            margin-top: 0.4rem;
+            padding: 0.42rem 0.6rem;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            background: #fff;
+        }
+        .especialidade-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.45rem;
+            border-radius: 999px;
+            background: #e7f1ff;
+            color: #084298;
+            font-size: 0.78rem;
+            line-height: 1.2;
+        }
+        .especialidade-tag button {
+            border: none;
+            background: transparent;
+            color: #084298;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            font-size: 0.92rem;
+        }
+        .especialidades-suggestions {
+            position: absolute;
+            z-index: 1050;
+            width: 100%;
+            max-height: 220px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            box-shadow: 0 0.4rem 1rem rgba(0,0,0,0.08);
+        }
+        .especialidades-suggestions button {
+            width: 100%;
+            text-align: left;
+            padding: 0.55rem 0.75rem;
+            border: none;
+            background: transparent;
+            color: #212529;
+            cursor: pointer;
+        }
+        .especialidades-suggestions button:hover {
+            background: #e7f1ff;
+        }
+        .especialidades-suggestions .sem-resultado {
+            padding: 0.55rem 0.75rem;
+            color: #6c757d;
         }
     </style>
 </head>
@@ -704,7 +771,7 @@ if ($resultEsp) {
                                 <td><?php echo htmlspecialchars($med['email']) ?></td>
                                 <td><span class="badge-status <?php echo $classeBadge ?>"><?php echo htmlspecialchars($med['status']) ?></span></td>
                                 <td class="text-center" style="white-space:nowrap;">
-                                    <button class="btn btn-sm btn-outline-primary py-0 px-2 btn-editar"
+                                    <button class="btn btn-sm btn-icon-sm btn-outline-primary btn-editar"
                                             title="Editar"
                                             data-id="<?php echo $med['id'] ?>"
                                             data-nome="<?php echo htmlspecialchars($med['nome']) ?>"
@@ -718,14 +785,14 @@ if ($resultEsp) {
                                         <i class="fa-solid fa-pen"></i>
                                     </button>
                                     <?php if (intval($med['agendamento_count']) === 0): ?>
-                                        <button class="btn btn-sm btn-outline-danger py-0 px-2 btn-excluir"
+                                        <button class="btn btn-sm btn-icon-sm btn-outline-danger btn-excluir"
                                                 title="Excluir médico"
                                                 data-id="<?php echo $med['id'] ?>"
                                                 data-nome="<?php echo htmlspecialchars($med['nome']) ?>">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
                                     <?php else: ?>
-                                        <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" disabled
+                                        <button class="btn btn-sm btn-icon-sm btn-outline-secondary" type="button" disabled
                                                 title="Este médico possui agendamentos vinculados e não pode ser excluído">
                                             <i class="fa-solid fa-link"></i>
                                         </button>
@@ -787,15 +854,15 @@ if ($resultEsp) {
                                        placeholder="Ex: CRM/SP 12345" required>
                             </div>
                             
-                            <!-- --- NOVO SELECT MÚLTIPLO DE ESPECIALIDADES --- -->
-                            <div class="col-md-6">
-                                <label for="formEspecialidade">Especialidades <span class="text-danger">*</span></label>
-                                <select class="form-select" id="formEspecialidade" name="especialidades[]" multiple required style="height: 100px;">
-                                    <?php foreach ($especialidades as $esp): ?>
-                                        <option value="<?php echo intval($esp['id']) ?>"><?php echo htmlspecialchars($esp['nome'] . ' (' . $esp['cbo'] . ')') ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <small class="text-muted" style="font-size: 11px;">Segure CTRL para selecionar mais de uma.</small>
+                            <div class="col-12">
+                                <label for="formEspecialidadeInput">Especialidades <span class="text-danger">*</span></label>
+                                <div class="position-relative">
+                                    <input type="text" class="form-control" id="formEspecialidadeInput" placeholder="Digite para buscar especialidades" autocomplete="off">
+                                    <div class="especialidades-suggestions d-none" id="especialidadesSuggestions"></div>
+                                </div>
+                                <div id="formEspecialidadesTags" class="especialidades-multi mt-2"></div>
+                                <div id="formEspecialidadesHidden"></div>
+                                <small class="text-muted" style="font-size: 11px;">Digite e pressione Enter para adicionar. Clique no X para remover.</small>
                             </div>
                             
                             <div class="col-md-6">
@@ -876,11 +943,148 @@ if ($resultEsp) {
         var modalFormMedico   = new bootstrap.Modal(modalFormMedicoEl);
         var modoEdicao        = false;
         var btnNovoMedico     = document.getElementById('btnNovoMedico');
+        var formEspecialidadeInput = document.getElementById('formEspecialidadeInput');
+        var especialidadesTags     = document.getElementById('formEspecialidadesTags');
+        var especialidadesHidden   = document.getElementById('formEspecialidadesHidden');
+        var especialidadesSuggestions = document.getElementById('especialidadesSuggestions');
         var urlParams         = new URLSearchParams(window.location.search);
         var pageAlert         = urlParams.get('alert');
         var pageAction        = urlParams.get('acao');
         var serverErrorMessage = <?php echo json_encode($pageError); ?>;
         var formHasFutureAppointments = document.getElementById('formHasFutureAppointments');
+        var especialidadesData = <?php echo json_encode($especialidades); ?>;
+        var selectedEspecialidades = [];
+
+        function renderEspecialidades() {
+            especialidadesTags.innerHTML = '';
+            especialidadesHidden.innerHTML = '';
+
+            if (selectedEspecialidades.length === 0) {
+                var placeholder = document.createElement('div');
+                placeholder.className = 'text-muted';
+                placeholder.style.fontSize = '0.88rem';
+                placeholder.textContent = 'Nenhuma especialidade selecionada.';
+                especialidadesTags.appendChild(placeholder);
+            }
+
+            selectedEspecialidades.forEach(function(item) {
+                var tag = document.createElement('span');
+                tag.className = 'especialidade-tag';
+                tag.innerHTML = '<span>' + item.nome + ' (' + item.cbo + ')</span>' +
+                    '<button type="button" aria-label="Remover ' + item.nome + '">&times;</button>';
+                tag.querySelector('button').addEventListener('click', function() {
+                    removeEspecialidade(item.id);
+                });
+                especialidadesTags.appendChild(tag);
+
+                var hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'especialidades[]';
+                hidden.value = item.id;
+                especialidadesHidden.appendChild(hidden);
+            });
+        }
+
+        function updateSuggestions(filter) {
+            var query = filter.trim().toLowerCase();
+            var available = especialidadesData.filter(function(item) {
+                return !selectedEspecialidades.some(function(sel) { return sel.id === item.id; });
+            });
+            if (query !== '') {
+                available = available.filter(function(item) {
+                    return item.nome.toLowerCase().indexOf(query) !== -1 || item.cbo.toLowerCase().indexOf(query) !== -1;
+                });
+            }
+            especialidadesSuggestions.innerHTML = '';
+
+            if (available.length === 0) {
+                var noResult = document.createElement('div');
+                noResult.className = 'sem-resultado';
+                noResult.textContent = 'Nenhuma especialidade encontrada.';
+                especialidadesSuggestions.appendChild(noResult);
+                especialidadesSuggestions.classList.remove('d-none');
+                return;
+            }
+
+            available.slice(0, 8).forEach(function(item) {
+                var option = document.createElement('button');
+                option.type = 'button';
+                option.textContent = item.nome + ' (' + item.cbo + ')';
+                option.addEventListener('click', function() {
+                    addEspecialidade(item.id);
+                });
+                especialidadesSuggestions.appendChild(option);
+            });
+            especialidadesSuggestions.classList.remove('d-none');
+        }
+
+        function addEspecialidade(id) {
+            if (selectedEspecialidades.some(function(item) { return item.id === id; })) {
+                formEspecialidadeInput.value = '';
+                updateSuggestions('');
+                return;
+            }
+            var item = especialidadesData.find(function(item) { return item.id === id; });
+            if (!item) return;
+            selectedEspecialidades.push(item);
+            formEspecialidadeInput.value = '';
+            renderEspecialidades();
+            updateSuggestions('');
+        }
+
+        function removeEspecialidade(id) {
+            selectedEspecialidades = selectedEspecialidades.filter(function(item) { return item.id !== id; });
+            renderEspecialidades();
+            updateSuggestions(formEspecialidadeInput.value);
+        }
+
+        function setSelectedEspecialidades(ids) {
+            selectedEspecialidades = especialidadesData.filter(function(item) {
+                return ids.indexOf(String(item.id)) !== -1;
+            });
+            renderEspecialidades();
+        }
+
+        function resetEspecialidades() {
+            selectedEspecialidades = [];
+            if (formEspecialidadeInput) {
+                formEspecialidadeInput.value = '';
+            }
+            renderEspecialidades();
+            especialidadesSuggestions.classList.add('d-none');
+        }
+
+        if (formEspecialidadeInput) {
+            formEspecialidadeInput.addEventListener('input', function() {
+                updateSuggestions(this.value);
+            });
+            formEspecialidadeInput.addEventListener('focus', function() {
+                updateSuggestions(this.value);
+            });
+            formEspecialidadeInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    var available = especialidadesData.filter(function(item) {
+                        return !selectedEspecialidades.some(function(sel) { return sel.id === item.id; });
+                    }).filter(function(item) {
+                        var query = formEspecialidadeInput.value.trim().toLowerCase();
+                        return query !== '' && (item.nome.toLowerCase().indexOf(query) !== -1 || item.cbo.toLowerCase().indexOf(query) !== -1);
+                    });
+                    if (available.length > 0) {
+                        addEspecialidade(available[0].id);
+                    }
+                } else if (event.key === 'Backspace' && formEspecialidadeInput.value === '') {
+                    if (selectedEspecialidades.length > 0) {
+                        removeEspecialidade(selectedEspecialidades[selectedEspecialidades.length - 1].id);
+                    }
+                }
+            });
+            document.addEventListener('click', function(event) {
+                if (!formEspecialidadeInput.contains(event.target) && !especialidadesSuggestions.contains(event.target)) {
+                    especialidadesSuggestions.classList.add('d-none');
+                }
+            });
+        }
 
         if (serverErrorMessage) {
             Swal.fire({
@@ -929,6 +1133,7 @@ if ($resultEsp) {
                 document.getElementById('formAcao').value = 'novo';
                 document.getElementById('formId').value   = '';
                 document.getElementById('formMedico').reset();
+                resetEspecialidades();
             });
         }
 
@@ -940,6 +1145,7 @@ if ($resultEsp) {
                 document.getElementById('formAcao').value = 'novo';
                 document.getElementById('formId').value   = '';
                 document.getElementById('formMedico').reset();
+                resetEspecialidades();
             }
             modoEdicao = false;
         });
@@ -962,10 +1168,7 @@ if ($resultEsp) {
                 
                 // --- SELEÇÃO DE MÚLTIPLAS ESPECIALIDADES ---
                 var espIds = btnEditar.dataset.especialidadesIds ? btnEditar.dataset.especialidadesIds.split(',') : [];
-                var selectEsp = document.getElementById('formEspecialidade');
-                Array.from(selectEsp.options).forEach(function(opt) {
-                    opt.selected = espIds.includes(opt.value);
-                });
+                setSelectedEspecialidades(espIds);
 
                 document.getElementById('formTelefone').value       = btnEditar.dataset.telefone;
                 document.getElementById('formEmail').value          = btnEditar.dataset.email;
@@ -999,6 +1202,16 @@ if ($resultEsp) {
         // ==================================================
         function salvarMedico() {
             var form = document.getElementById('formMedico');
+            if (selectedEspecialidades.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Especialidades obrigatórias',
+                    text: 'Selecione pelo menos uma especialidade para este médico.',
+                    confirmButtonColor: '#0d6efd'
+                });
+                formEspecialidadeInput.focus();
+                return;
+            }
             if (!form.checkValidity()) {
                 form.reportValidity();
                 return;

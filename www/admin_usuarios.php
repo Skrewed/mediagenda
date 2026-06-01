@@ -417,6 +417,15 @@ $resultado = mysqli_query($conexao_bd, $sql);
             border-bottom: none;
         }
 
+        .btn-icon-sm {
+            min-width: 36px;
+            padding: 0.32rem 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
         /* ==================== BADGES DE STATUS ==================== */
         .badge-status {
             display: inline-block;
@@ -705,8 +714,7 @@ $resultado = mysqli_query($conexao_bd, $sql);
                             <td class="text-center" style="white-space: nowrap;">
                                 <button
                                     type="button"
-                                    class="btn btn-outline-primary btn-sm me-2"
-                                    style="width: 40px;"
+                                    class="btn btn-outline-primary btn-sm btn-icon-sm me-2"
                                     title="Editar usuário"
                                     data-bs-toggle="modal"
                                     data-bs-target="#editarModal"
@@ -720,8 +728,7 @@ $resultado = mysqli_query($conexao_bd, $sql);
                                 <?php if ($usuario["cod_usuario"] != $_SESSION["cod_usuario"]) { ?>
                                     <a
                                         href="?excluir=<?= urlencode($usuario["username"]) ?>"
-                                        class="btn btn-outline-danger btn-sm btn-excluir"
-                                        style="width: 40px;"
+                                        class="btn btn-outline-danger btn-sm btn-icon-sm btn-excluir"
                                         title="Excluir usuário">
                                         <i class="fa-solid fa-trash"></i>
                                     </a>

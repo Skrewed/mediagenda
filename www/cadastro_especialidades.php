@@ -442,6 +442,15 @@ try {
             border-bottom: none;
         }
 
+        .btn-icon-sm {
+            min-width: 36px;
+            padding: 0.32rem 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
         .badge-status {
             display: inline-block;
             padding: 4px 12px;
@@ -548,7 +557,7 @@ try {
             <div class="card-titulo"><i class="fa-solid fa-magnifying-glass"></i> Filtros</div>
             <form method="GET" action="cadastro_especialidades.php" id="formFiltro">
                 <div class="row g-3">
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <label for="filtroBusca">Especialidade / CBO</label>
                         <input type="text" class="form-control form-control-sm" id="filtroBusca" name="busca" 
                                list="listaFiltroCbo" placeholder="Todos (Digite para buscar...)" 
@@ -616,7 +625,7 @@ try {
                                         <?php echo !empty($esp['data_criacao']) ? date('d/m/Y H:i', strtotime($esp['data_criacao'])) : '-'; ?>
                                     </td>
                                     <td class="text-center" style="white-space: nowrap;">
-                                        <button class="btn btn-sm btn-outline-primary py-0 px-2 btn-editar"
+                                        <button class="btn btn-sm btn-icon-sm btn-outline-primary btn-editar"
                                                 type="button"
                                                 data-id="<?php echo intval($esp['id']) ?>"
                                                 data-nome="<?php echo htmlspecialchars($esp['nome']) ?>"
@@ -627,7 +636,7 @@ try {
                                         </button>
                                         <?php $referencias = intval($esp['medico_count']) + intval($esp['agenda_count']); ?>
                                         <?php if ($referencias === 0): ?>
-                                            <button class="btn btn-sm btn-outline-danger py-0 px-2 btn-excluir"
+                                            <button class="btn btn-sm btn-icon-sm btn-outline-danger btn-excluir"
                                                     type="button"
                                                     data-id="<?php echo intval($esp['id']) ?>"
                                                     data-nome="<?php echo htmlspecialchars($esp['nome']) ?>"
@@ -635,7 +644,7 @@ try {
                                                 <i class="fa-solid fa-trash"></i>
                                             </button>
                                         <?php else: ?>
-                                            <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" disabled
+                                            <button class="btn btn-sm btn-icon-sm btn-outline-secondary" type="button" disabled
                                                     title="Esta especialidade está vinculada a registos e não pode ser excluída">
                                                 <i class="fa-solid fa-link"></i>
                                             </button>

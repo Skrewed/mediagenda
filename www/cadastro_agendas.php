@@ -602,6 +602,14 @@ if ($editarId > 0) {
             font-size: 0.88rem;
             margin-bottom: 4px;
         }
+        .btn-icon-sm {
+            min-width: 36px;
+            padding: 0.32rem 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
         .modal-footer .btn {
             padding: 0.5rem 1rem;
             min-height: 38px;
@@ -784,7 +792,7 @@ if ($editarId > 0) {
                                     <?php $agendamentoExpirado = ($ag['data'] < date('Y-m-d')); ?>
 
                                     <button
-                                            class="btn btn-sm <?= $agendamentoExpirado ? 'btn-secondary disabled' : 'btn-outline-primary' ?> btn-editar"
+                                            class="btn btn-sm btn-icon-sm <?= $agendamentoExpirado ? 'btn-secondary disabled' : 'btn-outline-primary' ?> btn-editar"
 
                                             title="Editar"
                                             data-id="<?php echo $ag['id'] ?>"
@@ -798,7 +806,7 @@ if ($editarId > 0) {
                                             data-status="<?php echo htmlspecialchars($ag['status']) ?>">
                                         <i class="fa-solid fa-pen"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger btn-cancelar"
+                                    <button class="btn btn-sm btn-icon-sm btn-outline-danger btn-cancelar"
                                             title="Cancelar agendamento"
                                             data-id="<?php echo $ag['id'] ?>"
                                             data-paciente="<?php echo htmlspecialchars($ag['paciente']) ?>">
@@ -1226,7 +1234,7 @@ if ($editarId > 0) {
             tdAc.style.whiteSpace = 'nowrap';
 
             var btnEdit = document.createElement('button');
-            btnEdit.className              = 'btn btn-sm btn-outline-primary py-0 px-2 btn-editar';
+            btnEdit.className              = 'btn btn-sm btn-icon-sm btn-outline-primary btn-editar';
             btnEdit.title                  = 'Editar';
             btnEdit.innerHTML              = '<i class="fa-solid fa-pen"></i>';
             btnEdit.dataset.id             = id;
@@ -1238,7 +1246,7 @@ if ($editarId > 0) {
             btnEdit.dataset.status         = status;
 
             var btnCan = document.createElement('button');
-            btnCan.className        = 'btn btn-sm btn-outline-danger py-0 px-2 btn-cancelar';
+            btnCan.className        = 'btn btn-sm btn-icon-sm btn-outline-danger btn-cancelar';
             btnCan.title            = 'Cancelar agendamento';
             btnCan.innerHTML        = '<i class="fa-solid fa-ban"></i>';
             btnCan.dataset.id       = id;
