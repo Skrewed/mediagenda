@@ -8,13 +8,15 @@ Sistema web para gerenciamento e agendamento de consultas médicas desenvolvido 
 
 O **MediAgenda** é uma aplicação desenvolvida para auxiliar no gerenciamento de consultas médicas, permitindo:
 
-- 🔐 Login de usuários
-- 📅 Visualização de agenda mensal
-- 🩺 Cadastro e gerenciamento de agendamentos
+- 🔐 Login seguro com senha criptografada
+- 👤 Cadastro de usuários por código convite
+- 🛠 Administração de usuários (cadastro, edição, exclusão e filtros)
+- 👥 Controle de perfis de acesso (Administrador e Usuário)
+- 📅 Cadastro e gerenciamento de agendamentos
 - 👨‍⚕️ Cadastro de médicos
 - 🏥 Cadastro de especialidades
 - ❌ Cancelamento de consultas
-- 📊 Dashboard moderno com calendário
+- 📊 Dashboard com calendário mensal
 
 O projeto foi desenvolvido utilizando conceitos de:
 
@@ -42,8 +44,11 @@ mediagenda/
 ├── cadastro_agendas.php
 ├── cadastro_medicos.php
 ├── cadastro_especialidades.php
+├── cadastro_usuarios.php
+├── admin_usuarios.php
+├── config_usuarios.php
 ├── cancelar_agendamento.php
-├── script.sql
+├── init.sql
 └── README.md
 ```
 
@@ -56,7 +61,7 @@ O sistema utiliza MySQL/MariaDB.
 O arquivo:
 
 ```text
-script.sql
+init.sql
 ```
 
 contém:
@@ -75,7 +80,7 @@ contém:
 Execute o arquivo:
 
 ```sql
-script.sql
+init.sql
 ```
 
 no MySQL ou MariaDB.
@@ -131,21 +136,33 @@ Este projeto possui finalidade educacional e foi desenvolvido como atividade pr�
 - 📱 Responsividade mobile
 - 🔔 Notificações de consultas
 - 📈 Relatórios
-- 👤 Controle de perfis de acesso
 - ☁️ Publicação em nuvem
 
 ---
 
 # 💻 Tecnologias Utilizadas
 
-| Tecnologia | Finalidade |
-|---|---|
-| PHP | Back-end |
-| MySQL/MariaDB | Banco de dados |
-| Bootstrap | Interface |
-| JavaScript | Interatividade |
-| SweetAlert2 | Alertas modernos |
-| Git/GitHub | Versionamento |
+| Tecnologia    | Finalidade        |
+|---------------|-------------------|
+| PHP           | Back-end          |
+| MySQL/MariaDB | Banco de dados    |
+| Bootstrap     | Interface         |
+| JavaScript    | Interatividade    |
+| SweetAlert2   | Alertas modernos  |
+| Git/GitHub    | Versionamento     |
+
+---
+
+# 🔒 Segurança
+
+O sistema possui:
+
+- autenticação de usuários por login e senha;
+- senhas armazenadas com hash seguro utilizando password_hash();
+- alteração de senha pelo próprio usuário;
+- controle de acesso por perfil (Administrador e Usuário);
+- restrição de acesso à área administrativa;
+- bloqueio de edição de agendamentos com data anterior ao dia atual.
 
 ---
 
