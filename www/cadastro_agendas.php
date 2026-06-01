@@ -310,6 +310,20 @@ if ($resMedicosAtivos) {
         $medicosAtivos[] = $row;
     }
 }
+
+$agendaParaEdicao = null;
+$editarId = isset($_GET['editar']) && $_GET['editar'] === '1' ? intval($_GET['id'] ?? 0) : 0;
+if ($editarId > 0) {
+    $sqlAgenda = "SELECT a.id, a.paciente, a.data, a.horario, a.status, a.medico_id, a.especialidade_id, m.nome AS medico, e.nome AS especialidade " .
+                 "FROM agendamentos a " .
+                 "JOIN medicos m ON a.medico_id = m.id " .
+                 "JOIN especialidades e ON a.especialidade_id = e.id " .
+                 "WHERE a.id = " . $editarId;
+    $resAgenda = mysqli_query($conexao_bd, $sqlAgenda);
+    if ($resAgenda && $rowAgenda = mysqli_fetch_assoc($resAgenda)) {
+        $agendaParaEdicao = $rowAgenda;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -896,6 +910,7 @@ if ($resMedicosAtivos) {
         var pageAlert         = urlParams.get('alert');
         var pageAction        = urlParams.get('acao');
         var serverErrorMessage = <?php echo json_encode($pageError); ?>;
+        var agendaParaEdicao  = <?php echo json_encode($agendaParaEdicao); ?>;
 
         if (serverErrorMessage) {
             Swal.fire({
@@ -1024,6 +1039,35 @@ if ($resMedicosAtivos) {
             }
             modoEdicao = false;
         });
+
+        function abrirModalEdicaoPorQuery() {
+            if (!agendaParaEdicao) {
+                return;
+            }
+
+            modoEdicao = true;
+            document.getElementById('modalFormTitulo').innerHTML =
+                '<i class="fa-solid fa-pen me-2"></i>Editar Agendamento';
+            document.getElementById('formAcao').value = 'editar';
+            document.getElementById('formId').value   = agendaParaEdicao.id;
+            document.getElementById('formPaciente').value = agendaParaEdicao.paciente;
+            document.getElementById('formData').value      = agendaParaEdicao.data;
+            document.getElementById('formHorario').value   = agendaParaEdicao.horario;
+            document.getElementById('formMedico').value    = agendaParaEdicao.medico_id;
+            carregarEspecialidades(agendaParaEdicao.medico_id, agendaParaEdicao.especialidade_id);
+
+            var selectStatus = document.getElementById('formStatus');
+            if (!Array.from(selectStatus.options).some(function(opt) { return opt.value === 'Cancelado'; })) {
+                var optionCancelado = document.createElement('option');
+                optionCancelado.value = 'Cancelado';
+                optionCancelado.textContent = 'Cancelado';
+                selectStatus.appendChild(optionCancelado);
+            }
+            selectStatus.value = agendaParaEdicao.status;
+            modalFormAgenda.show();
+        }
+
+        abrirModalEdicaoPorQuery();
 
         // ==================================================
         // EVENT DELEGATION — Editar e Cancelar (cobre linhas dinâmicas)

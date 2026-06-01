@@ -603,7 +603,7 @@ if ($result) {
                         <i class="fa-solid fa-ban me-1"></i> Cancelar Agendamento
                     </button>
                     <!-- TODO: implementar ação de editar -->
-                    <button type="button" class="btn btn-primary"><i class="fa-solid fa-pen me-1"></i> Editar</button>
+                    <button type="button" class="btn btn-primary" id="btnEditarAgendamento"><i class="fa-solid fa-pen me-1"></i> Editar</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                 </div>
             </div>
@@ -699,15 +699,18 @@ if ($result) {
         // CLIQUE NO CARD DE AGENDAMENTO → ABRE MODAL
         // ==================================================
         var modalAgendamento  = new bootstrap.Modal(document.getElementById('modalAgendamento'));
-        var agendamentoAtual  = { id: null, paciente: null, data: null, horario: null };
+        var agendamentoAtual  = { id: null, paciente: null, data: null, horario: null, medico: null, especialidade: null, status: null };
 
         document.querySelectorAll('.card-agendamento').forEach(function(card) {
             card.addEventListener('click', function() {
-                // Guarda os dados do agendamento selecionado para uso no cancelamento
-                agendamentoAtual.id       = card.dataset.id;
-                agendamentoAtual.paciente = card.dataset.paciente;
-                agendamentoAtual.data     = card.dataset.data;
-                agendamentoAtual.horario  = card.dataset.horario;
+                // Guarda os dados do agendamento selecionado para uso no cancelamento/edição
+                agendamentoAtual.id            = card.dataset.id;
+                agendamentoAtual.paciente      = card.dataset.paciente;
+                agendamentoAtual.data          = card.dataset.data;
+                agendamentoAtual.horario       = card.dataset.horario;
+                agendamentoAtual.medico        = card.dataset.medico;
+                agendamentoAtual.especialidade = card.dataset.especialidade;
+                agendamentoAtual.status        = card.dataset.status;
 
                 document.getElementById('modalPaciente').textContent      = card.dataset.paciente;
                 document.getElementById('modalMedico').textContent        = card.dataset.medico;
@@ -717,6 +720,14 @@ if ($result) {
                 document.getElementById('modalStatus').textContent        = card.dataset.status;
                 modalAgendamento.show();
             });
+        });
+
+        document.getElementById('btnEditarAgendamento').addEventListener('click', function() {
+            if (!agendamentoAtual.id) return;
+            var params = new URLSearchParams();
+            params.set('editar', '1');
+            params.set('id', agendamentoAtual.id);
+            window.location.href = 'cadastro_agendas.php?' + params.toString();
         });
 
         // ==================================================
