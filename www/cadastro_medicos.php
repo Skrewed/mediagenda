@@ -862,7 +862,6 @@ if ($resultEsp) {
                                 </div>
                                 <div id="formEspecialidadesTags" class="especialidades-multi mt-2"></div>
                                 <div id="formEspecialidadesHidden"></div>
-                                <small class="text-muted" style="font-size: 11px;">Digite e pressione Enter para adicionar. Clique no X para remover.</small>
                             </div>
                             
                             <div class="col-md-6">
