@@ -992,7 +992,7 @@ if ($resultEsp) {
             if (query !== '') {
                 available = available.filter(function(item) {
                     return item.nome.toLowerCase().indexOf(query) !== -1 || item.cbo.toLowerCase().indexOf(query) !== -1;
-                });
+                }).slice(0, 8);
             }
             especialidadesSuggestions.innerHTML = '';
 
@@ -1005,7 +1005,7 @@ if ($resultEsp) {
                 return;
             }
 
-            available.slice(0, 8).forEach(function(item) {
+            available.forEach(function(item) {
                 var option = document.createElement('button');
                 option.type = 'button';
                 option.textContent = item.nome + ' (' + item.cbo + ')';
