@@ -202,7 +202,13 @@ INSERT INTO medicos (id, nome, crm, telefone, email, status) VALUES
     (3, 'Dr. Pedro Alves',    'CRM/SP 34567', '(11) 93456-7890', 'pedro.alves@clinica.com',    'Ativo'),
     (4, 'Dra. Marina Reis',   'CRM/SP 45678', '(11) 94567-8901', 'marina.reis@clinica.com',    'Ativo'),
     (5, 'Dr. Ricardo Souza',  'CRM/SP 56789', '(11) 95678-9012', 'ricardo.souza@clinica.com',  'Inativo'),
-    (6, 'Dra. Fernanda Melo', 'CRM/SP 67890', '(11) 96789-0123', 'fernanda.melo@clinica.com',  'Ativo');
+    (6, 'Dra. Fernanda Melo', 'CRM/SP 67890', '(11) 96789-0123', 'fernanda.melo@clinica.com',  'Ativo'),
+    (7, 'Dr. João Pereira',     'CRM/SP 71234', '(11) 97123-4567', 'joao.pereira@clinica.com',   'Ativo'),
+    (8, 'Dra. Beatriz Santos',   'CRM/SP 82345', '(11) 98234-5678', 'beatriz.santos@clinica.com', 'Ativo'),
+    (9, 'Dr. Alexandre Costa',   'CRM/SP 93456', '(11) 99345-6789', 'alexandre.costa@clinica.com','Ativo'),
+    (10, 'Dra. Patrícia Mendes', 'CRM/SP 04567', '(11) 90456-7890', 'patricia.mendes@clinica.com','Ativo'),
+    (11, 'Dr. Rafael Oliveira',  'CRM/SP 15678', '(11) 91567-8901', 'rafael.oliveira@clinica.com','Ativo');
+
 
 -- ============================================================
 -- DADOS INICIAIS: Vínculo Médico x Especialidade
@@ -213,7 +219,26 @@ INSERT INTO medico_especialidades (medico_id, especialidade_id) VALUES
     (3, 5), -- Pedro Alves: alergista e imunologista
     (4, 6), -- Marina Reis: neurologista
     (5, 4), -- Ricardo Souza: nefrologista
-    (6, 3); -- Fernanda Melo: legista
+    (6, 3), -- Fernanda Melo: legista
+    -- Dr. João Pereira: 3 especialidades
+    (7, 1),  -- infectologista
+    (7, 9),  -- cardiologista
+    (7, 43), -- ginecologista e obstetra
+    -- Dra. Beatriz Santos: 2 especialidades
+    (8, 6),   -- neurologista
+    (8, 17), -- dermatologista
+    -- Dr. Alexandre Costa: 4 especialidades
+    (9, 5),   -- alergista e imunologista
+    (9, 33),  -- hematologista
+    (9, 29),  -- gastroenterologista
+    (9, 16),  -- psiquiatra
+    -- Dra. Patrícia Mendes: 3 especialidades
+    (10, 47), -- ortopedista e traumatologista
+    (10, 50), -- urologista
+    (10, 49), -- coloproctologista
+    -- Dr. Rafael Oliveira: 2 especialidades
+    (11, 28), -- fisiatra
+    (11, 38); -- cirurgião do aparelho digestivo
 
 -- ============================================================
 -- DADOS INICIAIS: agendamentos
@@ -229,7 +254,64 @@ INSERT INTO agendamentos (id, paciente, medico_id, especialidade_id, data, horar
     ( 8, 'Lucas Silva',     1, 1, '2026-06-15', '17:30', 'Confirmado'),
     ( 9, 'Luiz Henrique',   4, 6, '2026-06-19', '09:30', 'Confirmado'),
     (10, 'Beatriz Ramos',   2, 2, '2026-06-23', '10:00', 'Pendente'),
-    (11, 'Marcos Vinícius', 3, 5, '2026-06-26', '14:00', 'Confirmado');
+    (11, 'Marcos Vinícius', 3, 5, '2026-06-26', '14:00', 'Confirmado'),
+
+    (12, 'Ana Carolina',    7, 9, '2026-05-04', '08:30', 'Confirmado'),   
+    (13, 'Bruno Silva',     7, 43, '2026-05-04', '09:00', 'Pendente'),      
+    (14, 'Camila Oliveira', 8, 6,  '2026-05-05', '10:00', 'Confirmado'),   
+    (15, 'Daniel Rocha',    9, 29, '2026-05-05', '11:30', 'Confirmado'),     
+    (16, 'Elena Martins',   7, 1,  '2026-05-06', '14:00', 'Confirmado'),   
+    (17, 'Fabio Torres',    8, 17, '2026-05-06', '15:30', 'Pendente'),      
+    (18, 'Giovana Lima',    9, 5,  '2026-05-08', '07:00', 'Confirmado'),   
+    (19, 'Hugo Almeida',    7, 9,  '2026-05-08', '12:00', 'Pendente'),      
+    (20, 'Irene Souza',     10,47, '2026-05-11', '09:30', 'Confirmado'),     
+    (21, 'João Vicente',    8, 6,  '2026-05-11', '16:00', 'Pendente'),      
+    (22, 'Karina Nunes',    9,33,  '2026-05-12', '10:45', 'Confirmado'),     
+    (23, 'Lucas Borges',    7, 43, '2026-05-12', '13:30', 'Cancelado'),       
+    (24, 'Mariana Castro',  10,50, '2026-05-13', '11:00', 'Confirmado'),     
+    (25, 'Nicolas Pinto',   9,16,  '2026-05-14', '15:00', 'Pendente'),     
+    (26, 'Olivia Freitas',  8, 17, '2026-05-14', '09:15', 'Confirmado'),  
+    (27, 'Paulo Mendes',    7, 1,  '2026-05-18', '17:00', 'Pendente'), 
+    (28, 'Querida Silva',   9,33,  '2026-05-19', '14:30', 'Confirmado'),     
+    (29, 'Roberto Campos',  10,47, '2026-05-20', '08:00', 'Pendente'),  
+    (30, 'Sofia Alves',     7, 9,  '2026-05-21', '11:45', 'Confirmado'),
+
+    (31, 'Tiago Ferreira',     8, 6,  '2026-06-01', '07:30', 'Confirmado'),      
+    (32, 'Ursula Dias',        9, 5,   '2026-06-02', '10:30', 'Pendente'),       
+    (33, 'Vitoriana Lima',     7, 43, '2026-06-03', '16:45', 'Confirmado'),      
+    (34, 'Wagner Oliveira',    8,17,   '2026-06-04', '09:45', 'Pendente'),        
+    (35, 'Ximena Rodrigues',   10,50, '2026-06-08', '13:00', 'Confirmado'),      
+    (36, 'Yasmin Carvalho',    9,33,  '2026-06-09', '17:00', 'Pendente'),       
+    (37, 'Zé Eduardo',         7, 9,   '2026-06-10', '14:15', 'Cancelado'),      
+    (38, 'Amanda Correia',     8, 6,   '2026-06-11', '09:00', 'Confirmado'),      
+    (39, 'Breno Araújo',       7, 1,   '2026-06-12', '11:30', 'Pendente'),        
+    (40, 'Claudia Nascimento', 9,16,  '2026-06-15', '10:00', 'Confirmado'),      
+    (41, 'Davi Moura',         8,17,  '2026-06-16', '15:30', 'Pendente'),       
+    (42, 'Erika Vasconcelos',  7,43,   '2026-06-17', '08:45', 'Confirmado'),      
+    (43, 'Felipe Mendes',      10,47, '2026-06-19', '17:30', 'Cancelado'),      
+    (44, 'Gabriela Pinto',     8, 6,   '2026-06-22', '12:00', 'Confirmado'),      
+    (45, 'Henrique Santos',    9,33,  '2026-06-23', '09:30', 'Pendente'),        
+    (46, 'Isabela Gomes',      7, 9,   '2026-06-24', '16:00', 'Confirmado'),       
+    (47, 'Jorge Almeida',      8,17,  '2026-06-25', '14:30', 'Pendente'),        
+    (48, 'Kátia Ferreira',     9,29,   '2026-06-26', '11:00', 'Confirmado'),     
+
+    (49, 'Leonardo Costa',     7, 43, '2026-07-01', '10:00', 'Confirmado'),      
+    (50, 'Mônica Ribeiro',     8,17,   '2026-07-02', '15:45', 'Pendente'),        
+    (51, 'Nelson Cunha',       9,33,  '2026-07-03', '08:30', 'Confirmado'),      
+    (52, 'Olimpia Silva',      7, 9,   '2026-07-06', '13:30', 'Pendente'),       
+    (53, 'Pedro Henrique',     8, 6,   '2026-07-07', '11:15', 'Confirmado'),      
+    (54, 'Quintino Souza',     9,5,    '2026-07-08', '17:00', 'Pendente'),       
+    (55, 'Regina Martins',     7, 1,   '2026-07-09', '09:45', 'Cancelado'),      
+    (56, 'Samuel Dias',        8,17,  '2026-07-10', '14:30', 'Confirmado'),       
+    (57, 'Tatiane Oliveira',   7,43,  '2026-07-13', '10:15', 'Pendente'),        
+    (58, 'Ubaldo Gomes',       9,33,  '2026-07-14', '16:00', 'Confirmado'),      
+    (59, 'Viviane Pinto',      7,9,   '2026-07-15', '08:00', 'Pendente'),       
+    (60, 'Wellington Costa',   8,6,   '2026-07-16', '13:45', 'Cancelado'),         
+    (61, 'Xavier Almeida',     7,1,  '2026-07-17', '11:00', 'Confirmado'),       
+    (62, 'Yara Mendes',        8,17, '2026-07-20', '15:30', 'Pendente'),         
+    (63, 'Zeca Pereira',       9,5,   '2026-07-21', '09:15', 'Confirmado'),      
+    (64, 'Alice Barbosa',      7,43,'2026-07-22', '17:30', 'Pendente'),         
+    (65, 'Benedito Torres',    8,17,  '2026-07-23', '12:45', 'Confirmado');      
 
 -- ============================================================
 -- VIEWS ÚTEIS

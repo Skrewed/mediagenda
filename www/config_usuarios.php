@@ -62,54 +62,7 @@ if (isset($_POST["alterar_senha"])) {
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
-    <style>
-        .password-wrapper{
-            position:relative;
-        }
-
-        .password-wrapper button{
-            position:absolute;
-            right:14px;
-            top:50%;
-            transform:translateY(-50%);
-            border:none;
-            background:transparent;
-            color:#6c757d;
-            cursor:pointer;
-            padding:0;
-        }
-
-        .barra-senha{
-            width:100%;
-            height:8px;
-            border-radius:999px;
-            background:#e9ecef;
-            overflow:hidden;
-            margin-top:8px;
-        }
-
-        .forca-senha{
-            height:100%;
-            width:0%;
-            border-radius:999px;
-            transition:0.25s;
-        }
-
-        :root {
-            --azul-primario: #0d6efd;
-            --text-muted: #6c757d;
-        }
-
-        .modal-form .modal-header {
-            background: var(--azul-primario);
-            color: #fff;
-        }
-
-        .modal-form .modal-header .btn-close {
-            filter: invert(1);
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body class="bg-light">

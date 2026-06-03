@@ -30,10 +30,22 @@ $operadorEmail = $emailUsuario;
 /* ============================================================
    CARREGAR LISTA CBO DO JSON
 ============================================================ */
-$jsonCbo = file_get_contents('lista_cbo.json');
-$listaCbo = json_decode($jsonCbo, true);
-if (!$listaCbo) {
-    $listaCbo = []; 
+$especialidadesList = [];
+$sqlCbo = "SELECT id, nome, cbo FROM especialidades ORDER BY nome";
+$resultCbo = mysqli_query($conexao_bd, $sqlCbo);
+
+if ($resultCbo && mysqli_num_rows($resultCbo) > 0) {
+    while ($rowCbo = mysqli_fetch_assoc($resultCbo)) {
+        $opcaoFormatada = $rowCbo['cbo'] . ' - ' . $rowCbo['nome'];
+        $especialidadesList[] = [
+            'id' => $rowCbo['id'],
+            'cod_cbo' => $rowCbo['cbo'],
+            'nome_cbo' => $rowCbo['nome']
+        ];
+    }
+} else {
+    // Fallback em caso de erro (mesmo que raro)
+    $especialidadesList = []; 
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -221,273 +233,15 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
-    <style>
-        :root {
-            --azul-primario: #0d6efd;
-            --azul-escuro:   #084298;
-            --azul-claro:    #e7f1ff;
-            --cinza-fundo:   #f5f7fa;
-            --cinza-borda:   #e3e6ea;
-            --texto-escuro:  #1f2d3d;
-            --sidebar-larg:  250px;
-        }
-
-        body {
-            background-color: var(--cinza-fundo);
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            color: var(--texto-escuro);
-            overflow-x: hidden;
-        }
-
-        .navbar-topo {
-            background: linear-gradient(90deg, var(--azul-primario) 0%, var(--azul-escuro) 100%);
-            height: 60px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 1030;
-        }
-        .navbar-topo .navbar-brand {
-            color: #fff;
-            font-weight: 600;
-            font-size: 1.25rem;
-        }
-        .navbar-topo .navbar-brand i {
-            margin-right: 8px;
-        }
-        .btn-sanduiche {
-            background: transparent;
-            border: none;
-            color: #fff;
-            font-size: 1.3rem;
-            padding: 6px 12px;
-            border-radius: 6px;
-            transition: background 0.2s;
-        }
-        .btn-sanduiche:hover {
-            background: rgba(255,255,255,0.15);
-        }
-        .operador-toggle {
-            background: transparent;
-            border: none;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            border-radius: 30px;
-            transition: background 0.2s;
-        }
-        .operador-toggle:hover, .operador-toggle:focus {
-            background: rgba(255,255,255,0.15);
-            color: #fff;
-        }
-        .operador-toggle i.fa-circle-user {
-            font-size: 1.6rem;
-        }
-        .dropdown-menu-operador {
-            min-width: 220px;
-            border-radius: 10px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-            border: none;
-        }
-        .dropdown-menu-operador .dropdown-item i {
-            width: 22px;
-            color: var(--azul-primario);
-        }
-
-        .sidebar {
-            position: fixed;
-            top: 60px;
-            left: 0;
-            width: var(--sidebar-larg);
-            height: calc(100vh - 60px);
-            background: #fff;
-            border-right: 1px solid var(--cinza-borda);
-            padding: 20px 0;
-            transition: transform 0.3s ease;
-            z-index: 1020;
-            overflow-y: auto;
-        }
-        .sidebar.oculta {
-            transform: translateX(calc(var(--sidebar-larg) * -1));
-        }
-        .sidebar .nav-link {
-            color: var(--texto-escuro);
-            padding: 12px 20px;
-            border-left: 3px solid transparent;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .sidebar .nav-link i {
-            width: 22px;
-            color: var(--azul-primario);
-            font-size: 1.05rem;
-        }
-        .sidebar .nav-link:hover {
-            background: var(--azul-claro);
-            border-left-color: var(--azul-primario);
-            color: var(--azul-escuro);
-        }
-        .sidebar .nav-link.ativo {
-            background: var(--azul-claro);
-            border-left-color: var(--azul-primario);
-            color: var(--azul-escuro);
-            font-weight: 600;
-        }
-
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            top: 60px; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.4);
-            z-index: 1010;
-        }
-        .sidebar-overlay.ativo {
-            display: block;
-        }
-
-        .conteudo-principal {
-            margin-top: 60px;
-            margin-left: var(--sidebar-larg);
-            padding: 25px;
-            transition: margin-left 0.3s ease;
-            min-height: calc(100vh - 60px);
-        }
-        .conteudo-principal.expandido {
-            margin-left: 0;
-        }
-
-        @media (max-width: 991.98px) {
-            .sidebar {
-                transform: translateX(calc(var(--sidebar-larg) * -1));
-            }
-            .sidebar.aberta {
-                transform: translateX(0);
-                box-shadow: 2px 0 12px rgba(0,0,0,0.15);
-            }
-            .conteudo-principal {
-                margin-left: 0;
-            }
-        }
-
-        .page-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 22px;
-        }
-        .page-header h2 {
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: var(--azul-escuro);
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .page-header h2 i {
-            color: var(--azul-primario);
-        }
-
-        .card-pagina {
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            border: 1px solid var(--cinza-borda);
-            padding: 20px 24px;
-            margin-bottom: 20px;
-        }
-        .card-pagina .card-titulo {
-            font-weight: 600;
-            font-size: 0.95rem;
-            color: var(--azul-escuro);
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .card-pagina .card-titulo i {
-            color: var(--azul-primario);
-        }
-
-        .tabela-especialidades {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            font-size: 0.88rem;
-        }
-        .tabela-especialidades thead th {
-            background: var(--azul-claro);
-            color: var(--azul-escuro);
-            font-weight: 600;
-            padding: 10px 14px;
-            border-bottom: 2px solid var(--cinza-borda);
-            white-space: nowrap;
-        }
-        .tabela-especialidades tbody tr:hover {
-            background: #f8fbff;
-        }
-        .tabela-especialidades tbody td {
-            padding: 10px 14px;
-            border-bottom: 1px solid var(--cinza-borda);
-            vertical-align: middle;
-        }
-        .tabela-especialidades tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .btn-icon-sm {
-            min-width: 36px;
-            padding: 0.32rem 0.5rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
-        }
-
-        .badge-status {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-        .badge-status.badge-ativo {
-            background-color: #d1e7dd;
-            color: #0f5132;
-        }
-        .badge-status.badge-inativo {
-            background-color: #f8d7da;
-            color: #842029;
-        }
-
-        .modal-form .modal-header {
-            background: var(--azul-primario);
-            color: #fff;
-        }
-        .modal-form .modal-header .btn-close {
-            filter: invert(1);
-        }
-        .modal-form label {
-            font-weight: 500;
-            font-size: 0.88rem;
-            margin-bottom: 4px;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <datalist id="listaSugestoesCboCombinado">
-        <?php foreach ($listaCbo as $itemCbo): ?>
-            <option value="<?php echo htmlspecialchars($itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo']); ?>">
-        <?php endforeach; ?>
-    </datalist>
+    <?php foreach ($especialidadesList as $itemCbo): ?>
+        <option value="<?php echo htmlspecialchars($itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo']); ?>">
+    <?php endforeach; ?>
+</datalist>
 
     <nav class="navbar-topo d-flex align-items-center justify-content-between px-3">
         <div class="d-flex align-items-center gap-2">
@@ -558,18 +312,17 @@ try {
             <form method="GET" action="cadastro_especialidades.php" id="formFiltro">
                 <div class="row g-3">
                     <div class="col-12">
-                        <label for="filtroBusca">Especialidade / CBO</label>
                         <input type="text" class="form-control form-control-sm" id="filtroBusca" name="busca" 
-                               list="listaFiltroCbo" placeholder="Todos (Digite para buscar...)" 
+                               list="listaFiltroCbo" placeholder="Digite para buscar por Especialidade / CBO..." 
                                value="<?php echo htmlspecialchars($filtroBusca); ?>" autocomplete="off">
                         
                         <datalist id="listaFiltroCbo">
-                            <?php foreach ($listaCbo as $itemCbo): 
-                                $opcaoFormatada = $itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo'];
-                            ?>
-                                <option value="<?php echo htmlspecialchars($opcaoFormatada); ?>">
-                            <?php endforeach; ?>
-                        </datalist>
+    <?php foreach ($especialidadesList as $itemCbo): 
+        $opcaoFormatada = $itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo'];
+    ?>
+        <option value="<?php echo htmlspecialchars($opcaoFormatada); ?>">
+    <?php endforeach; ?>
+</datalist>
                     </div>
                 </div>
                 <div class="d-flex gap-2 mt-3">
@@ -673,12 +426,13 @@ try {
                     <input type="hidden" name="id" id="formId" value="">
                     <input type="hidden" name="nome" id="formNomeHidden">
                     <input type="hidden" name="cbo" id="formCboHidden">
+
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="formBuscaCbo" class="form-label">Especialidade / CBO <span class="text-danger">*</span></label>
                             <select class="form-select" id="formBuscaCbo" required>
                                 <option value="">Selecione...</option>
-                                <?php foreach ($listaCbo as $itemCbo): ?>
+                                <?php foreach ($especialidadesList as $itemCbo): ?> 
                                     <option value="<?php echo htmlspecialchars($itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo']); ?>">
                                         <?php echo htmlspecialchars($itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo']); ?>
                                     </option>
@@ -747,6 +501,7 @@ try {
 
         // Reset do formulário quando abre modal para nova especialidade
         modalFormEspecialidadeEl.addEventListener('show.bs.modal', function() {
+            // Só reseta se for uma nova especialidade (não edição)
             var btnClicado = document.activeElement;
             if (btnClicado && btnClicado.id === 'btnNovaEspecialidade') {
                 resetarFormularioEspecialidade();
@@ -789,7 +544,7 @@ try {
             formNomeHidden.value = '';
             document.getElementById('formStatus').value = 'Ativo';
             
-            // 3. Atualiza a lista escondendo os já cadastrados
+            // 3. Atualiza a lista escondendo os já cadastrados no banco (não mais JSON)
             atualizarOpcoesCbo(null);
         }
 
