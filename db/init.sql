@@ -202,18 +202,26 @@ INSERT INTO medicos (id, nome, crm, telefone, email, status) VALUES
     (3, 'Dr. Pedro Alves',    'CRM/SP 34567', '(11) 93456-7890', 'pedro.alves@clinica.com',    'Ativo'),
     (4, 'Dra. Marina Reis',   'CRM/SP 45678', '(11) 94567-8901', 'marina.reis@clinica.com',    'Ativo'),
     (5, 'Dr. Ricardo Souza',  'CRM/SP 56789', '(11) 95678-9012', 'ricardo.souza@clinica.com',  'Inativo'),
-    (6, 'Dra. Fernanda Melo', 'CRM/SP 67890', '(11) 96789-0123', 'fernanda.melo@clinica.com',  'Ativo');
+    (6, 'Dra. Fernanda Melo', 'CRM/SP 67890', '(11) 96789-0123', 'fernanda.melo@clinica.com',  'Ativo'),
+    (7, 'Dr. João Martins',   'CRM/SP 78901', '(35)99999-1001', 'joao.martins@clinica.com', 'Ativo'),
+    (8, 'Dra. Juliana Castro','CRM/SP 78902', '(35)99999-1002', 'juliana.castro@clinica.com', 'Ativo'),
+    (9, 'Dr. Marcelo Oliveira','CRM/SP 78903','(35)99999-1003', 'marcelo.oliveira@clinica.com', 'Ativo'),
+    (10,'Dra. Patrícia Mendes','CRM/SP 78904','(35)99999-1004', 'patricia.mendes@clinica.com', 'Ativo');
 
 -- ============================================================
 -- DADOS INICIAIS: Vínculo Médico x Especialidade
 -- ============================================================
 INSERT INTO medico_especialidades (medico_id, especialidade_id) VALUES
-    (1, 1), -- Carlos Lima: infectologista
-    (2, 2), -- Ana Paula: acupunturista
-    (3, 5), -- Pedro Alves: alergista e imunologista
-    (4, 6), -- Marina Reis: neurologista
-    (5, 4), -- Ricardo Souza: nefrologista
-    (6, 3); -- Fernanda Melo: legista
+    (1, 1),  -- Carlos Lima: infectologista
+    (2, 2),  -- Ana Paula: acupunturista
+    (3, 5),  -- Pedro Alves: alergista e imunologista
+    (4, 6),  -- Marina Reis: neurologista
+    (5, 4),  -- Ricardo Souza: nefrologista
+    (6, 3),  -- Fernanda Melo: legista
+    (7, 9),  -- João Martins: cardiologista
+    (8, 13), -- Juliana Castro: clínico
+    (9, 17), -- Marcelo Oliveira: dermatologista
+    (10, 15); -- Patrícia Mendes: médico de família e comunidade
 
 -- ============================================================
 -- DADOS INICIAIS: agendamentos
@@ -230,6 +238,11 @@ INSERT INTO agendamentos (id, paciente, medico_id, especialidade_id, data, horar
     ( 9, 'Luiz Henrique',   4, 6, '2026-06-19', '09:30', 'Confirmado'),
     (10, 'Beatriz Ramos',   2, 2, '2026-06-23', '10:00', 'Pendente'),
     (11, 'Marcos Vinícius', 3, 5, '2026-06-26', '14:00', 'Confirmado');
+    (12, 'Maria Oliveira',  7, 9, '2026-06-29', '08:00', 'Confirmado'),
+    (13, 'José Pereira',    8, 13, '2026-06-29', '09:00', 'Pendente'),
+    (14, 'Fernanda Silva',  9, 17, '2026-06-30', '10:00', 'Confirmado'),
+    (15, 'Carlos Souza',    10, 15, '2026-06-30', '14:00', 'Pendente'),
+    (16, 'Ana Beatriz',     7, 9, '2026-07-01', '15:00', 'Confirmado');
 
 -- ============================================================
 -- VIEWS ÚTEIS
