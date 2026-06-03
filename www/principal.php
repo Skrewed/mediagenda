@@ -309,21 +309,42 @@ if ($result) {
         }
         .calendario-grade .dia {
             background: #fff;
-            min-height: 120px;
+            min-height: 145px;
             padding: 8px;
             position: relative;
             transition: background 0.15s;
             display: flex;
             flex-direction: column;
+            padding-top: 30px;
         }
+        .numero-dia {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 24px;
+            background: #becee4;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dia:hover .numero-dia {
+            background: var(--azul-primario);
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
         .calendario-grade .dia:hover {
-            background: #fafbfc;
+            background: #f3f9ff;
         }
         .calendario-grade .dia.vazio {
             background: #f8f9fa;
         }
         .calendario-grade .dia.fim-semana {
-            background: #fdeaea;
+            background: #fff6f6;
         }
         .calendario-grade .dia.fim-semana:hover {
             background: #f8d7da;
@@ -522,6 +543,11 @@ if ($result) {
                     $classeFimSemana = ($diaSemana == 0 || $diaSemana == 6) ? 'fim-semana' : '';
                 ?>
                 <div class="dia <?php echo $classeHoje . ' ' . $classeFimSemana ?>">
+
+                        <!-- NOVO: Faixa com número do dia -->
+                        <div class="numero-dia">
+                            <span><?php echo sprintf('%02d', $dia) ?></span>
+                        </div>
 
                         <?php
                         /* ============================================================
