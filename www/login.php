@@ -17,7 +17,8 @@ $cadastroSucesso = isset($_GET['sucesso']) && $_GET['sucesso'] === 'cadastro';
           integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
           crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body>
     <main class="page-login">
@@ -35,10 +36,17 @@ $cadastroSucesso = isset($_GET['sucesso']) && $_GET['sucesso'] === 'cadastro';
                         <label for="usuario" class="form-label">Usuário</label>
                         <input type="text" id="usuario" name="usuario" class="form-control" placeholder="Digite seu usuário">
                     </div>
+                    
                     <div class="mb-4">
                         <label for="senha" class="form-label">Senha</label>
-                        <input type="password" id="senha" name="senha" class="form-control" placeholder="Digite sua senha">
+                        <div class="password-wrapper">
+                            <input type="password" id="senha" name="senha" class="form-control" placeholder="Digite sua senha">
+                            <button type="button" class="toggle-password-btn" onclick="togglePassword()" title="Mostrar senha">
+                                <i class="fa-solid fa-eye" id="eyeIcon"></i>
+                            </button>
+                        </div>
                     </div>
+                    
                     <button type="submit" class="btn btn-primary w-100 btn-auth">
                         <i class="fa-solid fa-right-to-bracket me-2"></i>Entrar no sistema
                     </button>
@@ -101,6 +109,22 @@ $cadastroSucesso = isset($_GET['sucesso']) && $_GET['sucesso'] === 'cadastro';
                 return false;
             }
             return true;
+        }
+
+        // Função para alternar a visibilidade da senha
+        function togglePassword() {
+            var senhaInput = document.getElementById('senha');
+            var eyeIcon = document.getElementById('eyeIcon');
+            
+            if (senhaInput.type === 'password') {
+                senhaInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                senhaInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
         }
     </script>
 </body>

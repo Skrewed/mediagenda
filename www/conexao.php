@@ -12,10 +12,12 @@
     $nome_bd = "labdbprog2";
     $port = 3306;
 
-    $conexao_bd = mysqli_connect($host_bd, $login_bd, $password_bd, $nome_bd, $port);
+    $conexao_bd = @mysqli_connect($host_bd, $login_bd, $password_bd, $nome_bd, $port);
 
     if (!$conexao_bd) {
-        die("Falha na conexão com o banco de dados: " . mysqli_connect_error());
+        error_log("Falha na conexão com o DB MediAgenda: " . mysqli_connect_error());
+        die("Desculpe, o sistema está passando por instabilidades. Tente novamente mais tarde.");
     }
+    
     mysqli_set_charset($conexao_bd, "utf8mb4");
 ?>

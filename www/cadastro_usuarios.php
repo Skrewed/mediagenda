@@ -29,98 +29,89 @@ require_once("conexao.php");
 
         } else {
 
-            $codigoEsc = mysqli_real_escape_string($conexao_bd, $codigo_convite);
+            /* ============================================================
+               1. Validação do Convite
+            ============================================================ */
+            $sqlConvite = "SELECT * FROM convite_usuario WHERE codigo = ? AND usado = 0 LIMIT 1";
+            $stmtConvite = mysqli_prepare($conexao_bd, $sqlConvite);
+            
+            if ($stmtConvite) {
+                mysqli_stmt_bind_param($stmtConvite, "s", $codigo_convite);
+                mysqli_stmt_execute($stmtConvite);
+                $resultadoConvite = mysqli_stmt_get_result($stmtConvite);
 
-            $sqlConvite = "
-                SELECT *
-                FROM convite_usuario
-                WHERE codigo = '$codigoEsc'
-                AND usado = 0
-                LIMIT 1
-            ";
-
-            $resultadoConvite = mysqli_query($conexao_bd, $sqlConvite);
-
-            if (mysqli_num_rows($resultadoConvite) == 0) {
-
-                $mensagem = "Código de convite inválido ou já utilizado.";
-
-            } elseif ($senha !== $confirmar_senha) {
-
-                $mensagem = "As senhas não coincidem.";
-
-            } elseif (
-                strlen($senha) < 6 ||
-                !preg_match('/[a-z]/', $senha) ||
-                !preg_match('/[A-Z]/', $senha) ||
-                !preg_match('/[0-9]/', $senha) ||
-                !preg_match('/[^A-Za-z0-9]/', $senha)
-            ) {
-
-                $mensagem = "A senha deve ser forte: mínimo 6 caracteres, com maiúscula, minúscula, número e símbolo.";
-
-            } else {
-
-                $convite = mysqli_fetch_assoc($resultadoConvite);
-                $perfilUsuario = $convite["perfil"];
-
-                $nome = mysqli_real_escape_string($conexao_bd, $nome);
-                $email = mysqli_real_escape_string($conexao_bd, $email);
-                $usuario = mysqli_real_escape_string($conexao_bd, $usuario);
-
-                $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
-                $senhaHash = mysqli_real_escape_string($conexao_bd, $senhaHash);
-
-                $verifica = "
-                    SELECT *
-                    FROM usuario
-                    WHERE username = '$usuario'
-                    OR email = '$email'
-                ";
-
-                $resultado = mysqli_query($conexao_bd, $verifica);
-
-                if (mysqli_num_rows($resultado) > 0) {
-
-                    $mensagem = "Usuário ou e-mail já cadastrado.";
-
+                if (mysqli_num_rows($resultadoConvite) == 0) {
+                    $mensagem = "Código de convite inválido ou já utilizado.";
+                } elseif ($senha !== $confirmar_senha) {
+                    $mensagem = "As senhas não coincidem.";
+                } elseif (
+                    strlen($senha) < 6 ||
+                    !preg_match('/[a-z]/', $senha) ||
+                    !preg_match('/[A-Z]/', $senha) ||
+                    !preg_match('/[0-9]/', $senha) ||
+                    !preg_match('/[^A-Za-z0-9]/', $senha)
+                ) {
+                    $mensagem = "A senha deve ser forte: mínimo 6 caracteres, com maiúscula, minúscula, número e símbolo.";
                 } else {
 
-                    $sql = "
-                        INSERT INTO usuario
-                        (nome, email, username, pass, perfil)
-                        VALUES
-                        (
-                            '$nome',
-                            '$email',
-                            '$usuario',
-                            '$senhaHash',
-                            '$perfilUsuario'
-                        )
-                    ";
+                    $convite = mysqli_fetch_assoc($resultadoConvite);
+                    $perfilUsuario = $convite["perfil"];
+                    $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
 
-                    if (mysqli_query($conexao_bd, $sql)) {
+                    /* ============================================================
+                       2. Verificação de Duplicidade
+                    ============================================================ */
+                    $verifica = "SELECT * FROM usuario WHERE username = ? OR email = ?";
+                    $stmtVerifica = mysqli_prepare($conexao_bd, $verifica);
+                    
+                    if ($stmtVerifica) {
+                        mysqli_stmt_bind_param($stmtVerifica, "ss", $usuario, $email);
+                        mysqli_stmt_execute($stmtVerifica);
+                        $resultadoDuplicidade = mysqli_stmt_get_result($stmtVerifica);
 
-                        mysqli_query(
-                            $conexao_bd,
-                            "UPDATE convite_usuario
-                            SET usado = 1
-                            WHERE codigo = '$codigoEsc'"
-                        );
+                        if (mysqli_num_rows($resultadoDuplicidade) > 0) {
+                            $mensagem = "Usuário ou e-mail já cadastrado.";
+                        } else {
 
-                        header("Location: login.php?sucesso=cadastro");
-                        exit;
+                            /* ============================================================
+                               3. Inserção do Novo Usuário
+                            ============================================================ */
+                            $sqlInsert = "INSERT INTO usuario (nome, email, username, pass, perfil) VALUES (?, ?, ?, ?, ?)";
+                            $stmtInsert = mysqli_prepare($conexao_bd, $sqlInsert);
 
-                    } else {
+                            if ($stmtInsert) {
+                                mysqli_stmt_bind_param($stmtInsert, "sssss", $nome, $email, $usuario, $senhaHash, $perfilUsuario);
+                                
+                                if (mysqli_stmt_execute($stmtInsert)) {
 
-                        $mensagem = "Erro ao cadastrar usuário.";
+                                    /* ============================================================
+                                       4. Queima do Convite
+                                    ============================================================ */
+                                    $sqlUpdateConvite = "UPDATE convite_usuario SET usado = 1 WHERE codigo = ?";
+                                    $stmtUpdateConvite = mysqli_prepare($conexao_bd, $sqlUpdateConvite);
+                                    
+                                    if ($stmtUpdateConvite) {
+                                        mysqli_stmt_bind_param($stmtUpdateConvite, "s", $codigo_convite);
+                                        mysqli_stmt_execute($stmtUpdateConvite);
+                                        mysqli_stmt_close($stmtUpdateConvite);
+                                    }
 
+                                    header("Location: login.php?sucesso=cadastro");
+                                    exit;
+
+                                } else {
+                                    $mensagem = "Erro ao cadastrar usuário.";
+                                }
+                                mysqli_stmt_close($stmtInsert);
+                            }
+                        }
+                        mysqli_stmt_close($stmtVerifica);
                     }
                 }
+                mysqli_stmt_close($stmtConvite);
             }
         }
     }
-
 ?>
 
 <!DOCTYPE html>
@@ -131,7 +122,7 @@ require_once("conexao.php");
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 
 <body>

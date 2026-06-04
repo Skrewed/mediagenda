@@ -36,19 +36,27 @@ if (isset($_POST["alterar_senha"])) {
     } else {
 
         $senhaHash = password_hash($novaSenha, PASSWORD_DEFAULT);
-        $senhaHash = mysqli_real_escape_string($conexao_bd, $senhaHash);
 
-        $sql = "
-            UPDATE usuario
-            SET pass = '$senhaHash'
-            WHERE cod_usuario = $cod_usuario
-        ";
+        /* ============================================================
+           (Prepared Statement)
+        ============================================================ */
+        $sql = "UPDATE usuario SET pass = ? WHERE cod_usuario = ?";
+        $stmt = mysqli_prepare($conexao_bd, $sql);
 
-        if (mysqli_query($conexao_bd, $sql)) {
-            header("Location: config_usuarios.php?sucesso=1");
-            exit;
+        if ($stmt) {
+            // "si" indica que vamos passar uma String (o hash) e um Integer (o id do usuário)
+            mysqli_stmt_bind_param($stmt, "si", $senhaHash, $cod_usuario);
+            
+            if (mysqli_stmt_execute($stmt)) {
+                mysqli_stmt_close($stmt);
+                header("Location: config_usuarios.php?sucesso=1");
+                exit;
+            } else {
+                $mensagem = "Erro ao alterar senha.";
+            }
+            mysqli_stmt_close($stmt);
         } else {
-            $mensagem = "Erro ao alterar senha.";
+            $mensagem = "Erro interno de comunicação com o banco de dados.";
         }
     }
 }
@@ -62,7 +70,7 @@ if (isset($_POST["alterar_senha"])) {
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 
 <body class="bg-light">
@@ -162,7 +170,23 @@ if (isset($_POST["alterar_senha"])) {
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+
+        // Verifica se a URL tem ?sucesso=1 para mostrar o alerta
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('sucesso') === '1') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Senha atualizada!',
+                text: 'Sua nova senha foi salva com sucesso.',
+                confirmButtonColor: '#0d6efd',
+                confirmButtonText: 'Entendi'
+            }).then(() => {
+                // Limpa a URL para não mostrar o alerta de novo ao recarregar a página
+                window.history.replaceState(null, null, window.location.pathname);
+            });
+        }
 
         function alternarSenha(campoId, botaoId) {
 
@@ -190,6 +214,7 @@ if (isset($_POST["alterar_senha"])) {
         const campoSenha = document.getElementById('nova_senha');
         const barraSenha = document.getElementById('barraSenha');
         const textoForcaSenha = document.getElementById('textoForcaSenha');
+        
         campoSenha.addEventListener('input', function() {
 
             const senha = this.value;

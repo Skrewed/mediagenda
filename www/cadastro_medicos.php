@@ -13,16 +13,25 @@ $emailUsuario = "";
 $perfilUsuario = "";
 $pageError = '';
 
-$sql = "SELECT * FROM usuario WHERE cod_usuario = " . $cod_usuario;
+/* ============================================================
+   PREPARED STATEMENT: Sessão do Usuário
+============================================================ */
+$sql = "SELECT * FROM usuario WHERE cod_usuario = ?";
+$stmt = mysqli_prepare($conexao_bd, $sql);
 
-$result = mysqli_query($conexao_bd, $sql);
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "i", $cod_usuario);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
 
-if ($result && $consulta = mysqli_fetch_assoc($result)) {
-    $nomeUsuario  = $consulta['nome'];
-    $emailUsuario = $consulta['email'];
-    $perfilUsuario = $consulta["perfil"];
-} elseif ($result === false) {
-    $pageError = mysqli_error($conexao_bd);
+    if ($result && $consulta = mysqli_fetch_assoc($result)) {
+        $nomeUsuario  = $consulta['nome'];
+        $emailUsuario = $consulta['email'];
+        $perfilUsuario = $consulta["perfil"];
+    } elseif ($result === false) {
+        $pageError = mysqli_error($conexao_bd);
+    }
+    mysqli_stmt_close($stmt);
 }
 
 /* ============================================================
@@ -48,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email            = trim($_POST['email'] ?? '');
             $status           = isset($_POST['status']) && $_POST['status'] === 'Inativo' ? 'Inativo' : 'Ativo';
             
-            // --- NOVA CAPTURA DE ESPECIALIDADES (ARRAY) ---
+            // --- CAPTURA DE ESPECIALIDADES (ARRAY) ---
             $especialidades   = isset($_POST['especialidades']) ? $_POST['especialidades'] : [];
 
             if ($nome === '') {
@@ -61,25 +70,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception('Selecione pelo menos uma especialidade.');
             }
 
-            $nomeEsc      = mysqli_real_escape_string($conexao_bd, $nome);
-            $crmEsc       = mysqli_real_escape_string($conexao_bd, $crm);
-            $telefoneEsc  = mysqli_real_escape_string($conexao_bd, $telefone);
-            $emailEsc     = mysqli_real_escape_string($conexao_bd, $email);
-            $statusEsc    = mysqli_real_escape_string($conexao_bd, $status);
-
             if ($acao === 'novo') {
-                // --- INSERT DO MÉDICO SEM A ESPECIALIDADE ---
-                $sql = "INSERT INTO medicos (nome, crm, telefone, email, status) VALUES ('" . $nomeEsc . "', '" . $crmEsc . "', '" . $telefoneEsc . "', '" . $emailEsc . "', '" . $statusEsc . "')";
-                $resultExec = mysqli_query($conexao_bd, $sql);
-                if (!$resultExec) {
+                /* ============================================================
+                   INSERT: Novo Médico e Tabela Pivô
+                ============================================================ */
+                $sql = "INSERT INTO medicos (nome, crm, telefone, email, status) VALUES (?, ?, ?, ?, ?)";
+                $stmtInsert = mysqli_prepare($conexao_bd, $sql);
+                
+                if (!$stmtInsert) {
+                    throw new Exception('Erro ao preparar query de inserção.');
+                }
+
+                mysqli_stmt_bind_param($stmtInsert, "sssss", $nome, $crm, $telefone, $email, $status);
+                if (!mysqli_stmt_execute($stmtInsert)) {
                     throw new Exception('Não foi possível cadastrar o médico. ' . mysqli_error($conexao_bd));
                 }
                 
-                // --- INSERT NA TABELA PIVÔ ---
                 $novoMedicoId = mysqli_insert_id($conexao_bd);
-                foreach ($especialidades as $espId) {
-                    $espId = intval($espId);
-                    mysqli_query($conexao_bd, "INSERT INTO medico_especialidades (medico_id, especialidade_id) VALUES ($novoMedicoId, $espId)");
+                mysqli_stmt_close($stmtInsert);
+                
+                // --- INSERT NA TABELA PIVÔ ---
+                $sqlPivo = "INSERT INTO medico_especialidades (medico_id, especialidade_id) VALUES (?, ?)";
+                $stmtPivo = mysqli_prepare($conexao_bd, $sqlPivo);
+                
+                if ($stmtPivo) {
+                    foreach ($especialidades as $espId) {
+                        $espIdInt = intval($espId);
+                        mysqli_stmt_bind_param($stmtPivo, "ii", $novoMedicoId, $espIdInt);
+                        mysqli_stmt_execute($stmtPivo);
+                    }
+                    mysqli_stmt_close($stmtPivo);
                 }
                 
                 $redirect .= '?alert=success&acao=novo';
@@ -90,30 +110,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception('Médico inválido para edição.');
                 }
                 if ($status === 'Inativo') {
-                    $sqlCount = "SELECT COUNT(*) AS total FROM agendamentos WHERE medico_id = " . $id . " AND data >= CURDATE()";
-                    $resultCount = mysqli_query($conexao_bd, $sqlCount);
-                    if ($resultCount) {
-                        $rowCount = mysqli_fetch_assoc($resultCount);
-                        if (intval($rowCount['total']) > 0) {
-                            throw new Exception('Não é possível inativar este médico enquanto houver agendamentos futuros.');
+                    /* ============================================================
+                       SELECT: Checar agendamentos futuros
+                    ============================================================ */
+                    $sqlCount = "SELECT COUNT(*) AS total FROM agendamentos WHERE medico_id = ? AND data >= CURDATE()";
+                    $stmtCount = mysqli_prepare($conexao_bd, $sqlCount);
+                    if ($stmtCount) {
+                        mysqli_stmt_bind_param($stmtCount, "i", $id);
+                        mysqli_stmt_execute($stmtCount);
+                        $resultCount = mysqli_stmt_get_result($stmtCount);
+                        if ($resultCount) {
+                            $rowCount = mysqli_fetch_assoc($resultCount);
+                            if (intval($rowCount['total']) > 0) {
+                                throw new Exception('Não é possível inativar este médico enquanto houver agendamentos futuros.');
+                            }
                         }
+                        mysqli_stmt_close($stmtCount);
                     } else {
-                        throw new Exception('Não foi possível verificar agendamentos futuros. ' . mysqli_error($conexao_bd));
+                        throw new Exception('Não foi possível verificar agendamentos futuros.');
                     }
                 }
                 
-                // --- UPDATE DO MÉDICO SEM A ESPECIALIDADE ---
-                $sql = "UPDATE medicos SET nome = '" . $nomeEsc . "', crm = '" . $crmEsc . "', telefone = '" . $telefoneEsc . "', email = '" . $emailEsc . "', status = '" . $statusEsc . "' WHERE id = " . $id;
-                $resultExec = mysqli_query($conexao_bd, $sql);
-                if (!$resultExec) {
-                    throw new Exception('Não foi possível atualizar o médico. ' . mysqli_error($conexao_bd));
+                /* ============================================================
+                   UPDATE: Edição do Médico
+                ============================================================ */
+                $sql = "UPDATE medicos SET nome = ?, crm = ?, telefone = ?, email = ?, status = ? WHERE id = ?";
+                $stmtUpdate = mysqli_prepare($conexao_bd, $sql);
+                
+                if (!$stmtUpdate) {
+                    throw new Exception('Erro ao preparar query de atualização.');
                 }
 
+                mysqli_stmt_bind_param($stmtUpdate, "sssssi", $nome, $crm, $telefone, $email, $status, $id);
+                if (!mysqli_stmt_execute($stmtUpdate)) {
+                    throw new Exception('Não foi possível atualizar o médico. ' . mysqli_error($conexao_bd));
+                }
+                mysqli_stmt_close($stmtUpdate);
+
                 // --- ATUALIZAÇÃO DA TABELA PIVÔ ---
-                mysqli_query($conexao_bd, "DELETE FROM medico_especialidades WHERE medico_id = $id");
-                foreach ($especialidades as $espId) {
-                    $espId = intval($espId);
-                    mysqli_query($conexao_bd, "INSERT INTO medico_especialidades (medico_id, especialidade_id) VALUES ($id, $espId)");
+                // 1. Deleta os antigos
+                $sqlDelPivo = "DELETE FROM medico_especialidades WHERE medico_id = ?";
+                $stmtDel = mysqli_prepare($conexao_bd, $sqlDelPivo);
+                if ($stmtDel) {
+                    mysqli_stmt_bind_param($stmtDel, "i", $id);
+                    mysqli_stmt_execute($stmtDel);
+                    mysqli_stmt_close($stmtDel);
+                }
+
+                // 2. Insere os novos
+                $sqlInsPivo = "INSERT INTO medico_especialidades (medico_id, especialidade_id) VALUES (?, ?)";
+                $stmtIns = mysqli_prepare($conexao_bd, $sqlInsPivo);
+                if ($stmtIns) {
+                    foreach ($especialidades as $espId) {
+                        $espIdInt = intval($espId);
+                        mysqli_stmt_bind_param($stmtIns, "ii", $id, $espIdInt);
+                        mysqli_stmt_execute($stmtIns);
+                    }
+                    mysqli_stmt_close($stmtIns);
                 }
 
                 $redirect .= '?alert=success&acao=editar';
@@ -123,19 +176,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($id <= 0) {
                 throw new Exception('Médico inválido para exclusão.');
             }
-            $sqlCheck = "SELECT COUNT(*) AS total FROM agendamentos WHERE medico_id = " . $id;
-            $resultCheck = mysqli_query($conexao_bd, $sqlCheck);
-            if (!$resultCheck) {
-                throw new Exception('Não foi possível verificar referências antes da exclusão. ' . mysqli_error($conexao_bd));
+
+            /* ============================================================
+               SELECT & DELETE: Exclusão do Médico
+            ============================================================ */
+            $sqlCheck = "SELECT COUNT(*) AS total FROM agendamentos WHERE medico_id = ?";
+            $stmtCheck = mysqli_prepare($conexao_bd, $sqlCheck);
+            if ($stmtCheck) {
+                mysqli_stmt_bind_param($stmtCheck, "i", $id);
+                mysqli_stmt_execute($stmtCheck);
+                $resultCheck = mysqli_stmt_get_result($stmtCheck);
+                if ($resultCheck) {
+                    $refRow = mysqli_fetch_assoc($resultCheck);
+                    if (intval($refRow['total']) > 0) {
+                        throw new Exception('Não é possível excluir este médico porque ele possui agendamentos vinculados. Use editar para inativar.');
+                    }
+                }
+                mysqli_stmt_close($stmtCheck);
             }
-            $refRow = mysqli_fetch_assoc($resultCheck);
-            if (intval($refRow['total']) > 0) {
-                throw new Exception('Não é possível excluir este médico porque ele possui agendamentos vinculados. Use editar para inativar.');
-            }
-            $sql = "DELETE FROM medicos WHERE id = " . $id;
-            $resultExec = mysqli_query($conexao_bd, $sql);
-            if (!$resultExec) {
-                throw new Exception('Não foi possível excluir o médico. ' . mysqli_error($conexao_bd));
+
+            $sqlDel = "DELETE FROM medicos WHERE id = ?";
+            $stmtDel = mysqli_prepare($conexao_bd, $sqlDel);
+            if ($stmtDel) {
+                mysqli_stmt_bind_param($stmtDel, "i", $id);
+                if (!mysqli_stmt_execute($stmtDel)) {
+                    throw new Exception('Não foi possível excluir o médico. ' . mysqli_error($conexao_bd));
+                }
+                mysqli_stmt_close($stmtDel);
             }
             $redirect .= '?alert=success&acao=excluir';
         }
@@ -148,34 +215,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /* ============================================================
-   FILTROS DE BUSCA
-   Os valores abaixo são usados para montar a query no banco
+   FILTROS DE BUSCA (Dinâmicos)
 ============================================================ */
 $filtroNome            = trim(isset($_GET['nome'])            ? $_GET['nome']            : '');
 $filtroEspecialidadeId = trim(isset($_GET['especialidade_id']) ? $_GET['especialidade_id'] : '');
 $filtroStatus          = trim(isset($_GET['status'])          ? $_GET['status']          : '');
 
 /* ============================================================
-   CONSULTA DE MÉDICOS
-   Os dados são carregados do banco de acordo com os filtros aplicados.
+   [SEGURANÇA] CONSULTA DE MÉDICOS (Construção Dinâmica da Query)
 ============================================================ */
 $medicos = array();
 $where = array();
+$params = array();
+$types = "";
 
 if ($filtroNome !== '') {
-    $nomeEsc = mysqli_real_escape_string($conexao_bd, $filtroNome);
-    $where[] = "m.nome LIKE '%" . $nomeEsc . "%'";
-}
-// --- FILTRO COM A NOVA ESTRUTURA N:N ---
-if ($filtroEspecialidadeId !== '' && intval($filtroEspecialidadeId) > 0) {
-    $where[] = "m.id IN (SELECT medico_id FROM medico_especialidades WHERE especialidade_id = " . intval($filtroEspecialidadeId) . ")";
-}
-if ($filtroStatus !== '') {
-    $statusEsc = mysqli_real_escape_string($conexao_bd, $filtroStatus);
-    $where[] = "m.status = '" . $statusEsc . "'";
+    $where[] = "m.nome LIKE ?";
+    $params[] = "%" . $filtroNome . "%";
+    $types .= "s";
 }
 
-// --- CONSULTA SQL ALTERADA COM GROUP_CONCAT E LEFT JOINs N:N ---
+if ($filtroEspecialidadeId !== '' && intval($filtroEspecialidadeId) > 0) {
+    $where[] = "m.id IN (SELECT medico_id FROM medico_especialidades WHERE especialidade_id = ?)";
+    $params[] = intval($filtroEspecialidadeId);
+    $types .= "i";
+}
+
+if ($filtroStatus !== '') {
+    $where[] = "m.status = ?";
+    $params[] = $filtroStatus;
+    $types .= "s";
+}
+
 $sqlConsulta = "SELECT m.id, m.nome, m.crm, m.telefone, m.email, m.status, "
              . "GROUP_CONCAT(DISTINCT e.id SEPARATOR ',') AS especialidades_ids, "
              . "GROUP_CONCAT(DISTINCT e.nome SEPARATOR ', ') AS especialidades_nomes, "
@@ -185,16 +256,26 @@ $sqlConsulta = "SELECT m.id, m.nome, m.crm, m.telefone, m.email, m.status, "
              . "LEFT JOIN medico_especialidades me ON me.medico_id = m.id "
              . "LEFT JOIN especialidades e ON e.id = me.especialidade_id "
              . "LEFT JOIN agendamentos a ON a.medico_id = m.id";
+
 if (count($where) > 0) {
     $sqlConsulta .= " WHERE " . implode(' AND ', $where);
 }
 $sqlConsulta .= " GROUP BY m.id, m.nome, m.crm, m.telefone, m.email, m.status ORDER BY m.nome ASC";
 
-$resultMedicos = mysqli_query($conexao_bd, $sqlConsulta);
-if ($resultMedicos) {
-    while ($row = mysqli_fetch_assoc($resultMedicos)) {
-        $medicos[] = $row;
+$stmtMedicos = mysqli_prepare($conexao_bd, $sqlConsulta);
+if ($stmtMedicos) {
+    if (!empty($params)) {
+        mysqli_stmt_bind_param($stmtMedicos, $types, ...$params);
     }
+    mysqli_stmt_execute($stmtMedicos);
+    $resultMedicos = mysqli_stmt_get_result($stmtMedicos);
+    
+    if ($resultMedicos) {
+        while ($row = mysqli_fetch_assoc($resultMedicos)) {
+            $medicos[] = $row;
+        }
+    }
+    mysqli_stmt_close($stmtMedicos);
 } else {
     if ($pageError === '') {
         $pageError = mysqli_error($conexao_bd);
@@ -203,7 +284,6 @@ if ($resultMedicos) {
 
 /* ============================================================
    ESPECIALIDADES DISPONÍVEIS
-   Carrega do banco de dados.
 ============================================================ */
 $especialidades = array();
 $sqlEsp = "SELECT id, nome, cbo FROM especialidades ORDER BY nome";
@@ -235,8 +315,7 @@ if ($resultEsp) {
     <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-    <!-- ================ ESTILOS DA APLICAÇÃO ================ -->
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body>
 
@@ -314,10 +393,6 @@ if ($resultEsp) {
             </button>
         </div>
 
-        <!-- ============================================================
-             FILTROS DE BUSCA
-             Os valores são enviados via GET e usados para filtrar a consulta no banco.
-        ============================================================ -->
         <div class="card-pagina">
             <div class="card-titulo"><i class="fa-solid fa-magnifying-glass"></i> Filtros</div>
             <form method="GET" action="cadastro_medicos.php">
@@ -419,7 +494,6 @@ if ($resultEsp) {
                                     </div>
                                 </td>
                                 <td><?php echo htmlspecialchars($med['crm']) ?></td>
-                                <!-- --- COLUNA DA NOVA ESPECIALIDADE --- -->
                                 <td><?php echo htmlspecialchars($med['especialidades_nomes'] ?? '') ?></td>
                                 <td><?php echo htmlspecialchars($med['telefone']) ?></td>
                                 <td><?php echo htmlspecialchars($med['email']) ?></td>
@@ -804,7 +878,7 @@ if ($resultEsp) {
         });
 
         // ==================================================
-        // EVENT DELEGATION — Editar e Excluir (cobre linhas dinâmicas)
+        // EVENT DELEGATION — Editar e Excluir
         // ==================================================
         document.querySelector('.tabela-medicos').addEventListener('click', function(e) {
             var btnEditar  = e.target.closest('.btn-editar');

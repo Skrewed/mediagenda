@@ -12,15 +12,24 @@ $emailUsuario = "";
 $perfilUsuario = "";
 $pageError = '';
 
-$sql = "SELECT * FROM usuario WHERE cod_usuario = " . $cod_usuario;
-$result = mysqli_query($conexao_bd, $sql);
-
-if ($result && $consulta = mysqli_fetch_assoc($result)) {
-    $nomeUsuario = $consulta["nome"];
-    $emailUsuario = $consulta["email"];
-    $perfilUsuario = $consulta["perfil"];
-} elseif ($result === false) {
-    $pageError = mysqli_error($conexao_bd);
+/* ============================================================
+   1. SELECT INICIAL
+============================================================ */
+$sql = "SELECT * FROM usuario WHERE cod_usuario = ?";
+$stmt = mysqli_prepare($conexao_bd, $sql);
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "i", $cod_usuario);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    
+    if ($result && $consulta = mysqli_fetch_assoc($result)) {
+        $nomeUsuario = $consulta["nome"];
+        $emailUsuario = $consulta["email"];
+        $perfilUsuario = $consulta["perfil"];
+    } elseif ($result === false) {
+        $pageError = mysqli_error($conexao_bd);
+    }
+    mysqli_stmt_close($stmt);
 }
 
 if ($perfilUsuario != "admin") {
@@ -28,153 +37,176 @@ if ($perfilUsuario != "admin") {
     exit;
 }
 
+/* ============================================================
+   2. INSERT (Adicionar Usuário)
+============================================================ */
 if (isset($_POST["adicionar"])) {
-    $nome = mysqli_real_escape_string($conexao_bd, $_POST["novo_nome"]);
-    $email = mysqli_real_escape_string($conexao_bd, $_POST["novo_email"]);
-    $username = mysqli_real_escape_string($conexao_bd, $_POST["novo_username"]);
-    $perfil = mysqli_real_escape_string(
-        $conexao_bd,
-        $_POST["novo_perfil"]
-    );
-
+    $nome     = $_POST["novo_nome"];
+    $email    = $_POST["novo_email"];
+    $username = $_POST["novo_username"];
+    $perfil   = $_POST["novo_perfil"];
+    
+    // O Hash da senha já é seguro por natureza
     $pass = password_hash($_POST["novo_pass"], PASSWORD_DEFAULT);
-    $pass = mysqli_real_escape_string($conexao_bd, $pass);
 
-    $sqlInsert = "
-        INSERT INTO usuario (nome, email, username, pass, perfil)
-        VALUES ('$nome', '$email', '$username', '$pass', '$perfil')
-    ";
-
-    mysqli_query($conexao_bd, $sqlInsert);
+    $sqlInsert = "INSERT INTO usuario (nome, email, username, pass, perfil) VALUES (?, ?, ?, ?, ?)";
+    $stmt = mysqli_prepare($conexao_bd, $sqlInsert);
+    
+    if ($stmt) {
+        // "sssss" indica 5 strings
+        mysqli_stmt_bind_param($stmt, "sssss", $nome, $email, $username, $pass, $perfil);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+    }
 
     header("Location: admin_usuarios.php?sucesso=adicionar");
     exit;
 }
 
+/* ============================================================
+   3. INSERT (Gerar Convite)
+============================================================ */
 if (isset($_POST["gerar_convite"])) {
+    $perfilConvite = $_POST["perfil_convite"];
+    $codigoConvite = strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
 
-    $perfilConvite = mysqli_real_escape_string(
-        $conexao_bd,
-        $_POST["perfil_convite"]
-    );
-
-    $codigoConvite =
-        strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
-
-    $sqlConvite = "
-        INSERT INTO convite_usuario
-        (codigo, perfil, usado)
-        VALUES
-        ('$codigoConvite', '$perfilConvite', 0)
-    ";
-
-    if (mysqli_query($conexao_bd, $sqlConvite)) {
-        header(
-            "Location: admin_usuarios.php?convite=$codigoConvite"
-        );
-        exit;
+    $sqlConvite = "INSERT INTO convite_usuario (codigo, perfil, usado) VALUES (?, ?, 0)";
+    $stmt = mysqli_prepare($conexao_bd, $sqlConvite);
+    
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "ss", $codigoConvite, $perfilConvite);
+        if (mysqli_stmt_execute($stmt)) {
+            mysqli_stmt_close($stmt);
+            header("Location: admin_usuarios.php?convite=$codigoConvite");
+            exit;
+        }
+        mysqli_stmt_close($stmt);
     }
 }
 
+/* ============================================================
+   4. UPDATE (Editar Usuário)
+============================================================ */
 if (isset($_POST["editar"])) {
-
-    $cod_usuario = intval($_POST["cod_usuario"]);
-    $nome = mysqli_real_escape_string($conexao_bd, $_POST["nome"]);
-    $email = mysqli_real_escape_string($conexao_bd, $_POST["email"]);
-    $username = mysqli_real_escape_string($conexao_bd, $_POST["username"]);
-    $pass = trim($_POST["pass"] ?? '');
-
-    $sqlUpdate = "
-        UPDATE usuario
-        SET
-            nome = '$nome',
-            email = '$email',
-            username = '$username'
-    ";
+    $cod_usuario_edit = intval($_POST["cod_usuario"]);
+    $nome     = $_POST["nome"];
+    $email    = $_POST["email"];
+    $username = $_POST["username"];
+    $pass     = trim($_POST["pass"] ?? '');
 
     if ($pass != "") {
-
         $passHash = password_hash($pass, PASSWORD_DEFAULT);
-        $passHash = mysqli_real_escape_string($conexao_bd, $passHash);
-
-        $sqlUpdate .= ",
-            pass = '$passHash'
-        ";
+        $sqlUpdate = "UPDATE usuario SET nome = ?, email = ?, username = ?, pass = ? WHERE cod_usuario = ?";
+        $stmt = mysqli_prepare($conexao_bd, $sqlUpdate);
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, "ssssi", $nome, $email, $username, $passHash, $cod_usuario_edit);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+        }
+    } else {
+        $sqlUpdate = "UPDATE usuario SET nome = ?, email = ?, username = ? WHERE cod_usuario = ?";
+        $stmt = mysqli_prepare($conexao_bd, $sqlUpdate);
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, "sssi", $nome, $email, $username, $cod_usuario_edit);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+        }
     }
-
-    $sqlUpdate .= "
-        WHERE cod_usuario = $cod_usuario
-    ";
-
-    mysqli_query($conexao_bd, $sqlUpdate);
 
     header("Location: admin_usuarios.php?sucesso=editar");
     exit;
 }
 
+/* ============================================================
+   5. DELETE BLINDADO (Excluir Usuário)
+============================================================ */
 if (isset($_GET["excluir"])) {
-    $username = mysqli_real_escape_string($conexao_bd, $_GET["excluir"]);
+    $usernameExcluir = $_GET["excluir"];
 
-    $sqlDelete = "DELETE FROM usuario WHERE username = '$username'";
-    mysqli_query($conexao_bd, $sqlDelete);
+    $sqlDelete = "DELETE FROM usuario WHERE username = ?";
+    $stmt = mysqli_prepare($conexao_bd, $sqlDelete);
+    
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "s", $usernameExcluir);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+    }
 
     header("Location: admin_usuarios.php?sucesso=excluir");
     exit;
 }
 
+/* ============================================================
+   6. SELECT DINÂMICO BLINDADO (Filtros e Paginação)
+============================================================ */
 $filtroNome = trim($_GET["nome"] ?? '');
 $filtroUsername = trim($_GET["username"] ?? '');
 $filtroEmail = trim($_GET["email"] ?? '');
 
 $where = array();
+$params = array();
+$types = "";
 
 if ($filtroNome != '') {
-    $nomeEsc = mysqli_real_escape_string($conexao_bd, $filtroNome);
-    $where[] = "nome LIKE '%$nomeEsc%'";
+    $where[] = "nome LIKE ?";
+    $params[] = "%" . $filtroNome . "%";
+    $types .= "s";
 }
 
 if ($filtroUsername != '') {
-    $usernameEsc = mysqli_real_escape_string($conexao_bd, $filtroUsername);
-    $where[] = "username LIKE '%$usernameEsc%'";
+    $where[] = "username LIKE ?";
+    $params[] = "%" . $filtroUsername . "%";
+    $types .= "s";
 }
 
 if ($filtroEmail != '') {
-    $emailEsc = mysqli_real_escape_string($conexao_bd, $filtroEmail);
-    $where[] = "email LIKE '%$emailEsc%'";
+    $where[] = "email LIKE ?";
+    $params[] = "%" . $filtroEmail . "%";
+    $types .= "s";
 }
 
-$sql = "SELECT cod_usuario, nome, email, username, pass, perfil FROM usuario";
-
+$whereClause = "";
 if (!empty($where)) {
-    $sql .= " WHERE " . implode(" AND ", $where);
+    $whereClause = " WHERE " . implode(" AND ", $where);
 }
 
-$sql .= " ORDER BY nome ASC";
+// 6.1 Contagem Total
+$sqlTotal = "SELECT COUNT(*) as total FROM usuario" . $whereClause;
+$stmtTotal = mysqli_prepare($conexao_bd, $sqlTotal);
+if ($stmtTotal) {
+    if (!empty($params)) {
+        // Operador de espalhamento (spread operator) injeta os itens do array como parâmetros
+        mysqli_stmt_bind_param($stmtTotal, $types, ...$params);
+    }
+    mysqli_stmt_execute($stmtTotal);
+    $resultTotal = mysqli_stmt_get_result($stmtTotal);
+    $totalUsuarios = mysqli_fetch_assoc($resultTotal)["total"];
+    mysqli_stmt_close($stmtTotal);
+} else {
+    $totalUsuarios = 0;
+}
 
 $usuariosPorPagina = 10;
-
-$sqlTotal = "SELECT COUNT(*) as total FROM usuario";
-
-if (!empty($where)) {
-    $sqlTotal .= " WHERE " . implode(" AND ", $where);
-}
-
-$resultTotal = mysqli_query($conexao_bd, $sqlTotal);
-$totalUsuarios = mysqli_fetch_assoc($resultTotal)["total"];
-
 $totalPaginas = ceil($totalUsuarios / $usuariosPorPagina);
-
 $paginaAtual = isset($_GET['pagina']) ? intval($_GET['pagina']) : 1;
-
-if ($paginaAtual < 1) {
-    $paginaAtual = 1;
-}
-
+if ($paginaAtual < 1) { $paginaAtual = 1; }
 $inicio = ($paginaAtual - 1) * $usuariosPorPagina;
 
-$sql .= " LIMIT $inicio, $usuariosPorPagina";
+// 6.2 Busca Principal com Limite
+$sqlBusca = "SELECT cod_usuario, nome, email, username, pass, perfil FROM usuario" . $whereClause . " ORDER BY nome ASC LIMIT ?, ?";
+$stmtBusca = mysqli_prepare($conexao_bd, $sqlBusca);
 
-$resultado = mysqli_query($conexao_bd, $sql);
+if ($stmtBusca) {
+    // Adiciona os limites de paginação ao array de parâmetros
+    $paramsBusca = $params;
+    $paramsBusca[] = $inicio;
+    $paramsBusca[] = $usuariosPorPagina;
+    $typesBusca = $types . "ii";
+
+    mysqli_stmt_bind_param($stmtBusca, $typesBusca, ...$paramsBusca);
+    mysqli_stmt_execute($stmtBusca);
+    $resultado = mysqli_stmt_get_result($stmtBusca);
+}
 ?>
 
 <!DOCTYPE html>
@@ -185,7 +217,7 @@ $resultado = mysqli_query($conexao_bd, $sql);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body>
 
@@ -391,7 +423,7 @@ $resultado = mysqli_query($conexao_bd, $sql);
             </span>
 
             <span class="text-muted" style="font-size:0.82rem; font-weight:400;">
-                <?php echo mysqli_num_rows($resultado); ?> registro(s) encontrado(s)
+                <?php echo $totalUsuarios; ?> registro(s) encontrado(s)
             </span>
         </div>
 
@@ -409,7 +441,8 @@ $resultado = mysqli_query($conexao_bd, $sql);
                 </thead>
 
                 <tbody>
-                    <?php while ($usuario = mysqli_fetch_assoc($resultado)) { ?>
+                    <?php if (isset($resultado) && mysqli_num_rows($resultado) > 0) { 
+                        while ($usuario = mysqli_fetch_assoc($resultado)) { ?>
                         <tr>
                             <td class="text-muted"><?= $usuario["cod_usuario"] ?></td>
                             <td><?= htmlspecialchars($usuario["nome"]) ?></td>
@@ -446,6 +479,10 @@ $resultado = mysqli_query($conexao_bd, $sql);
                                     </a>
                                 <?php } ?>
                             </td>
+                        </tr>
+                    <?php } } else { ?>
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">Nenhum usuário encontrado com os filtros selecionados.</td>
                         </tr>
                     <?php } ?>
                 </tbody>

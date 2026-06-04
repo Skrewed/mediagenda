@@ -15,16 +15,27 @@ $nomeUsuario = "";
 $perfilUsuario = "";
 $pageError = '';
 
-$sql = "SELECT * FROM usuario WHERE cod_usuario = " . $cod_usuario;
-$result = mysqli_query($conexao_bd,$sql); 
+/* ============================================================
+   [SEGURANÇA] PREPARED STATEMENT 1: Buscar usuário
+============================================================ */
+$sql = "SELECT * FROM usuario WHERE cod_usuario = ?";
+$stmt = mysqli_prepare($conexao_bd, $sql);
 
-if ($result && $consulta = mysqli_fetch_assoc($result)) {
-    $nomeUsuario  = $consulta['nome'];
-    $emailUsuario = $consulta['email'];
-    $perfilUsuario = $consulta["perfil"];
-} elseif ($result === false) {
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "i", $cod_usuario);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+
+    if ($result && $consulta = mysqli_fetch_assoc($result)) {
+        $nomeUsuario  = $consulta['nome'];
+        $emailUsuario = $consulta['email'];
+        $perfilUsuario = $consulta["perfil"];
+    }
+    mysqli_stmt_close($stmt);
+} else {
     $pageError = mysqli_error($conexao_bd);
 }
+
 /* ============================================================
    DADOS DO OPERADOR LOGADO
 ============================================================ */
@@ -57,22 +68,30 @@ $proximoAno = $anoAtual;
 if ($proximoMes > 12) { $proximoMes = 1; $proximoAno++; }
 
 /* ============================================================
-   AGENDAMENTOS FICTÍCIOS
+   [SEGURANÇA] PREPARED STATEMENT 2: Agendamentos Fictícios
 ============================================================ */
-$sql = "select *, DAY(data) diaAgenda from vw_agendamentos where MONTH(data) = $mesAtual AND YEAR(data) = $anoAtual";
-$result = mysqli_query($conexao_bd,$sql);
-if ($result) {
-    while($row = mysqli_fetch_assoc($result)){
+$agendamentosFicticios = [];
+$sql = "SELECT *, DAY(data) as diaAgenda FROM vw_agendamentos WHERE MONTH(data) = ? AND YEAR(data) = ?";
+$stmt = mysqli_prepare($conexao_bd, $sql);
 
-        $agendamentosFicticios[$row["diaAgenda"]][] = [
-        'id'            => $row["id"],
-        'horario'       => date("H:i", strtotime($row["horario"])),
-        'paciente'      => $row["paciente"],
-        'medico'        => $row["medico"],
-        'especialidade' => $row["especialidade"],
-        'status'        => $row["status"]
-    ];
-}
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "ii", $mesAtual, $anoAtual);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+
+    if ($result) {
+        while($row = mysqli_fetch_assoc($result)){
+            $agendamentosFicticios[$row["diaAgenda"]][] = [
+                'id'            => $row["id"],
+                'horario'       => date("H:i", strtotime($row["horario"])),
+                'paciente'      => $row["paciente"],
+                'medico'        => $row["medico"],
+                'especialidade' => $row["especialidade"],
+                'status'        => $row["status"]
+            ];
+        }
+    }
+    mysqli_stmt_close($stmt);
 } else {
     if ($pageError === '') {
         $pageError = mysqli_error($conexao_bd);
@@ -428,7 +447,24 @@ if ($result) {
                 document.getElementById('modalEspecialidade').textContent = card.dataset.especialidade;
                 document.getElementById('modalData').textContent          = card.dataset.data;
                 document.getElementById('modalHorario').textContent       = card.dataset.horario;
-                document.getElementById('modalStatus').textContent        = card.dataset.status;
+                
+                // --- Formatação do Status usando as classes oficiais ---
+                var statusText = card.dataset.status;
+                var spanStatus = document.getElementById('modalStatus');
+                spanStatus.textContent = statusText;
+                
+                // Usa a classe base "badge-status" e dá uma margem (ms-2)
+                spanStatus.className = 'badge-status ms-2';
+                
+                // Aplica a classe de cor específica
+                if (statusText === 'Confirmado') {
+                    spanStatus.classList.add('badge-confirmado');
+                } else if (statusText === 'Pendente') {
+                    spanStatus.classList.add('badge-pendente');
+                } else {
+                    spanStatus.classList.add('badge-cancelado');
+                }
+
                 modalAgendamento.show();
             });
         });

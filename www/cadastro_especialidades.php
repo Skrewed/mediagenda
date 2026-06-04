@@ -1,5 +1,5 @@
 <?php
-require_once("conexao.php");
+require_once("conexao.php"); // importar o conexao.php para esta página
 
 session_start();
 if (!isset($_SESSION['cod_usuario'])) {
@@ -13,22 +13,32 @@ $emailUsuario = "";
 $perfilUsuario = "";
 $pageError = '';
 
-$sql = "SELECT * FROM usuario WHERE cod_usuario = " . $cod_usuario;
+/* ============================================================
+   PREPARED STATEMENT 1: Buscar operador logado
+============================================================ */
+$sql = "SELECT * FROM usuario WHERE cod_usuario = ?";
+$stmtUser = mysqli_prepare($conexao_bd, $sql);
 
-$result = mysqli_query($conexao_bd, $sql);
-if ($result && $consulta = mysqli_fetch_assoc($result)) {
-    $nomeUsuario  = $consulta['nome'];
-    $emailUsuario = $consulta['email'];
-    $perfilUsuario = $consulta["perfil"];
-} elseif ($result === false) {
-    $pageError = mysqli_error($conexao_bd);
+if ($stmtUser) {
+    mysqli_stmt_bind_param($stmtUser, "i", $cod_usuario);
+    mysqli_stmt_execute($stmtUser);
+    $result = mysqli_stmt_get_result($stmtUser);
+    
+    if ($result && $consulta = mysqli_fetch_assoc($result)) {
+        $nomeUsuario  = $consulta['nome'];
+        $emailUsuario = $consulta['email'];
+        $perfilUsuario = $consulta["perfil"];
+    } elseif ($result === false) {
+        $pageError = mysqli_error($conexao_bd);
+    }
+    mysqli_stmt_close($stmtUser);
 }
 
 $operadorNome  = $nomeUsuario;
 $operadorEmail = $emailUsuario;
 
 /* ============================================================
-   CARREGAR LISTA CBO DO JSON
+   CARREGAR LISTA CBO DO JSON (Estrutura estática interna)
 ============================================================ */
 $especialidadesList = [];
 $sqlCbo = "SELECT id, nome, cbo FROM especialidades ORDER BY nome";
@@ -36,7 +46,6 @@ $resultCbo = mysqli_query($conexao_bd, $sqlCbo);
 
 if ($resultCbo && mysqli_num_rows($resultCbo) > 0) {
     while ($rowCbo = mysqli_fetch_assoc($resultCbo)) {
-        $opcaoFormatada = $rowCbo['cbo'] . ' - ' . $rowCbo['nome'];
         $especialidadesList[] = [
             'id' => $rowCbo['id'],
             'cod_cbo' => $rowCbo['cbo'],
@@ -48,6 +57,9 @@ if ($resultCbo && mysqli_num_rows($resultCbo) > 0) {
     $especialidadesList = []; 
 }
 
+/* ============================================================
+   PROCESSAMENTO DE AÇÕES (POST)
+============================================================ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = isset($_POST['acao']) ? trim($_POST['acao']) : '';
     $acao = strtolower($acao);
@@ -55,118 +67,130 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         if ($acao === 'novo' || $acao === 'editar') {
-            $nome = trim($_POST['nome'] ?? '');
-            $cbo  = trim($_POST['cbo'] ?? '');
+            $nome   = trim($_POST['nome'] ?? '');
+            $cbo    = trim($_POST['cbo'] ?? '');
             $status = isset($_POST['status']) && $_POST['status'] === 'Inativo' ? 'Inativo' : 'Ativo'; 
-            $id   = isset($_POST['id']) ? intval($_POST['id']) : 0;
+            $id     = isset($_POST['id']) ? intval($_POST['id']) : 0;
             
             if ($nome === '' || $cbo === '') {
                 throw new Exception('Selecione uma especialidade válida da lista CBO.');
             }
             
-            $nomeEsc = mysqli_real_escape_string($conexao_bd, $nome);
-            $cboEsc  = mysqli_real_escape_string($conexao_bd, $cbo); 
-            
-            // --- NOVA VALIDAÇÃO: VERIFICA SE JÁ EXISTE ---
+            /* ============================================================
+               PREPARED STATEMENT 2: Verificar duplicidade
+            ============================================================ */
             if ($acao === 'editar') {
-                $sqlCheck = "
-                    SELECT id
-                    FROM especialidades
-                    WHERE (cbo = '$cboEsc' OR nome = '$nomeEsc')
-                    AND id != $id
-                ";
+                $sqlCheck = "SELECT id FROM especialidades WHERE (cbo = ? OR nome = ?) AND id != ?";
+                $stmtCheck = mysqli_prepare($conexao_bd, $sqlCheck);
+                if ($stmtCheck) {
+                    mysqli_stmt_bind_param($stmtCheck, "ssi", $cbo, $nome, $id);
+                }
             } else {
-                $sqlCheck = "
-                    SELECT id
-                    FROM especialidades
-                    WHERE cbo = '$cboEsc'
-                    OR nome = '$nomeEsc'
-                ";
-            }
-            $resultCheck = mysqli_query($conexao_bd, $sqlCheck);
-            if (mysqli_num_rows($resultCheck) > 0) {
-                throw new Exception('Esta especialidade (CBO: ' . $cboEsc . ') já foi adicionada anteriormente.');
-            }
-            // ---------------------------------------------
-
-            // --- VALIDAÇÃO: NÃO DEIXA INATIVAR SE HOUVER MÉDICOS ATIVOS VINCULADOS ---
-            if ($acao === 'editar' && $status === 'Inativo') {
-                $sqlCheckAtivos = "
-                    SELECT COUNT(*) AS total
-                    FROM medico_especialidades me
-                    JOIN medicos m ON m.id = me.medico_id
-                    WHERE me.especialidade_id = $id
-                    AND m.status = 'Ativo'
-                ";
-                $resultCheckAtivos = mysqli_query($conexao_bd, $sqlCheckAtivos);
-                if ($resultCheckAtivos) {
-                    $rowCheckAtivos = mysqli_fetch_assoc($resultCheckAtivos);
-                    if (intval($rowCheckAtivos['total']) > 0) {
-                        throw new Exception('Não é possível inativar esta especialidade enquanto houver médicos ativos vinculados a ela.');
-                    }
+                $sqlCheck = "SELECT id FROM especialidades WHERE cbo = ? OR nome = ?";
+                $stmtCheck = mysqli_prepare($conexao_bd, $sqlCheck);
+                if ($stmtCheck) {
+                    mysqli_stmt_bind_param($stmtCheck, "ss", $cbo, $nome);
                 }
             }
-            // -----------------------------------------------
             
+            if ($stmtCheck) {
+                mysqli_stmt_execute($stmtCheck);
+                $resultCheck = mysqli_stmt_get_result($stmtCheck);
+                if (mysqli_num_rows($resultCheck) > 0) {
+                    mysqli_stmt_close($stmtCheck);
+                    throw new Exception('Esta especialidade (CBO: ' . $cbo . ') já foi adicionada anteriormente.');
+                }
+                mysqli_stmt_close($stmtCheck);
+            }
+            
+            /* ============================================================
+               PREPARED STATEMENT 3: Inativação Condicional
+            ============================================================ */
+            if ($acao === 'editar' && $status === 'Inativo') {
+                $sqlCheckAtivos = "SELECT COUNT(*) AS total FROM medico_especialidades me 
+                                   JOIN medicos m ON m.id = me.medico_id 
+                                   WHERE me.especialidade_id = ? AND m.status = 'Ativo'";
+                $stmtCheckAtivos = mysqli_prepare($conexao_bd, $sqlCheckAtivos);
+                if ($stmtCheckAtivos) {
+                    mysqli_stmt_bind_param($stmtCheckAtivos, "i", $id);
+                    mysqli_stmt_execute($stmtCheckAtivos);
+                    $resultCheckAtivos = mysqli_stmt_get_result($stmtCheckAtivos);
+                    if ($resultCheckAtivos) {
+                        $rowCheckAtivos = mysqli_fetch_assoc($resultCheckAtivos);
+                        if (intval($rowCheckAtivos['total']) > 0) {
+                            mysqli_stmt_close($stmtCheckAtivos);
+                            throw new Exception('Não é possível inativar esta especialidade enquanto houver médicos ativos vinculados a ela.');
+                        }
+                    }
+                    mysqli_stmt_close($stmtCheckAtivos);
+                }
+            }
+            
+            // Inserção ou Edição de fato
             if ($acao === 'novo') {
-                $sql = "INSERT INTO especialidades (nome, cbo, status) VALUES ('" . $nomeEsc . "', '" . $cboEsc . "', '" . $status . "')";
-                $resultExec = mysqli_query($conexao_bd, $sql);
-                if (!$resultExec) {
-                    throw new Exception('Não foi possível criar a especialidade. ' . mysqli_error($conexao_bd));
+                $sql = "INSERT INTO especialidades (nome, cbo, status) VALUES (?, ?, ?)";
+                $stmtExec = mysqli_prepare($conexao_bd, $sql);
+                if ($stmtExec) {
+                    mysqli_stmt_bind_param($stmtExec, "sss", $nome, $cbo, $status);
+                    if (!mysqli_stmt_execute($stmtExec)) {
+                        mysqli_stmt_close($stmtExec);
+                        throw new Exception('Não foi possível criar a especialidade.');
+                    }
+                    mysqli_stmt_close($stmtExec);
                 }
                 $redirect .= '?alert=success&acao=novo';
             } elseif ($acao === 'editar') {
                 if ($id <= 0) {
                     throw new Exception('Especialidade inválida para edição.');
                 }
-                $sql = "UPDATE especialidades SET nome = '" . $nomeEsc . "', cbo = '" . $cboEsc . "', status = '" . $status . "' WHERE id = " . $id;
-                $resultExec = mysqli_query($conexao_bd, $sql);
-                if (!$resultExec) {
-                    throw new Exception('Não foi possível atualizar a especialidade. ' . mysqli_error($conexao_bd));
+                $sql = "UPDATE especialidades SET nome = ?, cbo = ?, status = ? WHERE id = ?";
+                $stmtExec = mysqli_prepare($conexao_bd, $sql);
+                if ($stmtExec) {
+                    mysqli_stmt_bind_param($stmtExec, "sssi", $nome, $cbo, $status, $id);
+                    if (!mysqli_stmt_execute($stmtExec)) {
+                        mysqli_stmt_close($stmtExec);
+                        throw new Exception('Não foi possível atualizar a especialidade.');
+                    }
+                    mysqli_stmt_close($stmtExec);
                 }
                 $redirect .= '?alert=success&acao=editar';
             }
         } elseif ($acao === 'excluir') {
-
             $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
 
             if ($id <= 0) {
                 throw new Exception('Especialidade inválida para exclusão.');
             }
 
-            // Verifica se existem vínculos com médicos ou agendamentos
-            $sqlCheck = "
-                SELECT
-                (
-                    SELECT COUNT(*)
-                    FROM medico_especialidades
-                    WHERE especialidade_id = $id
-                ) +
-                (
-                    SELECT COUNT(*)
-                    FROM agendamentos
-                    WHERE especialidade_id = $id
-                ) AS total
-            ";
-
-            $resultCheck = mysqli_query($conexao_bd, $sqlCheck);
-
-            if (!$resultCheck) {
-                throw new Exception('Erro ao validar vínculos da especialidade. ' . mysqli_error($conexao_bd));
+            /* ============================================================
+               [SEGURANÇA] PREPARED STATEMENT 4: Validar Vínculos antes de Deletar
+            ============================================================ */
+            $sqlCheckVinc = "SELECT (SELECT COUNT(*) FROM medico_especialidades WHERE especialidade_id = ?) +
+                                    (SELECT COUNT(*) FROM agendamentos WHERE especialidade_id = ?) AS total";
+            $stmtCheckVinc = mysqli_prepare($conexao_bd, $sqlCheckVinc);
+            if ($stmtCheckVinc) {
+                mysqli_stmt_bind_param($stmtCheckVinc, "ii", $id, $id);
+                mysqli_stmt_execute($stmtCheckVinc);
+                $resultCheck = mysqli_stmt_get_result($stmtCheckVinc);
+                if ($resultCheck) {
+                    $rowCheck = mysqli_fetch_assoc($resultCheck);
+                    if ((int)$rowCheck['total'] > 0) {
+                        mysqli_stmt_close($stmtCheckVinc);
+                        throw new Exception('Esta especialidade possui vínculos com médicos ou agendamentos e não pode ser excluída.');
+                    }
+                }
+                mysqli_stmt_close($stmtCheckVinc);
             }
 
-            $rowCheck = mysqli_fetch_assoc($resultCheck);
-
-            if ((int)$rowCheck['total'] > 0) {
-                throw new Exception('Esta especialidade possui vínculos com médicos ou agendamentos e não pode ser excluída.');
-            }
-
-            $sql = "DELETE FROM especialidades WHERE id = " . $id;
-
-            $resultExec = mysqli_query($conexao_bd, $sql);
-
-            if (!$resultExec) {
-                throw new Exception('Não foi possível excluir a especialidade. ' . mysqli_error($conexao_bd));
+            $sqlDel = "DELETE FROM especialidades WHERE id = ?";
+            $stmtDel = mysqli_prepare($conexao_bd, $sqlDel);
+            if ($stmtDel) {
+                mysqli_stmt_bind_param($stmtDel, "i", $id);
+                if (!mysqli_stmt_execute($stmtDel)) {
+                    mysqli_stmt_close($stmtDel);
+                    throw new Exception('Não foi possível excluir a especialidade.');
+                }
+                mysqli_stmt_close($stmtDel);
             }
 
             $redirect .= '?alert=success&acao=excluir';
@@ -179,20 +203,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+/* ============================================================
+   FILTROS DE BUSCA DINÂMICOS COM PREPARED STATEMENT
+============================================================ */
 $filtroBusca = trim(isset($_GET['busca']) ? $_GET['busca'] : '');
-
 $especialidades = array();
 $where = array();
-$pageError = '';
+$params = array();
+$types = "";
 
 if ($filtroBusca !== '') {
     if (strpos($filtroBusca, ' - ') !== false) {
         $partesBusca = explode(' - ', $filtroBusca);
-        $cboBusca = mysqli_real_escape_string($conexao_bd, $partesBusca[0]);
-        $where[] = "e.cbo = '" . $cboBusca . "'";
+        $where[] = "e.cbo = ?";
+        $params[] = $partesBusca[0];
+        $types .= "s";
     } else {
-        $buscaEsc = mysqli_real_escape_string($conexao_bd, $filtroBusca);
-        $where[] = "(e.nome LIKE '%" . $buscaEsc . "%' OR e.cbo LIKE '%" . $buscaEsc . "%')";
+        $where[] = "(e.nome LIKE ? OR e.cbo LIKE ?)";
+        $params[] = "%" . $filtroBusca . "%";
+        $params[] = "%" . $filtroBusca . "%";
+        $types .= "ss";
     }
 }
 
@@ -200,30 +230,33 @@ $sqlConsulta = "SELECT e.id, e.nome, e.cbo, e.status, e.data_criacao,
                        COUNT(DISTINCT me.medico_id) AS medico_count,
                        COUNT(DISTINCT a.id) AS agenda_count
                 FROM especialidades e
-                LEFT JOIN medico_especialidades me
-                    ON me.especialidade_id = e.id
-                LEFT JOIN agendamentos a
-                    ON a.especialidade_id = e.id";
+                LEFT JOIN medico_especialidades me ON me.especialidade_id = e.id
+                LEFT JOIN agendamentos a ON a.especialidade_id = e.id";
+
 if (count($where) > 0) {
     $sqlConsulta .= " WHERE " . implode(' AND ', $where);
 }
 $sqlConsulta .= " GROUP BY e.id, e.nome, e.cbo, e.status, e.data_criacao ORDER BY e.nome ASC";
 
-try {
-    $resultEsp = mysqli_query($conexao_bd, $sqlConsulta);
+$stmtBusca = mysqli_prepare($conexao_bd, $sqlConsulta);
+if ($stmtBusca) {
+    if (!empty($params)) {
+        mysqli_stmt_bind_param($stmtBusca, $types, ...$params);
+    }
+    mysqli_stmt_execute($stmtBusca);
+    $resultEsp = mysqli_stmt_get_result($stmtBusca);
     if ($resultEsp) {
         while ($row = mysqli_fetch_assoc($resultEsp)) {
             $especialidades[] = $row;
         }
-    } else {
-        $pageError = mysqli_error($conexao_bd);
     }
-} catch (Exception $ex) {
-    $pageError = $ex->getMessage();
+    mysqli_stmt_close($stmtBusca);
+} else {
+    $pageError = mysqli_error($conexao_bd);
 }
 ?>
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -233,7 +266,7 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body>
 
@@ -241,7 +274,7 @@ try {
     <?php foreach ($especialidadesList as $itemCbo): ?>
         <option value="<?php echo htmlspecialchars($itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo']); ?>">
     <?php endforeach; ?>
-</datalist>
+    </datalist>
 
     <nav class="navbar-topo d-flex align-items-center justify-content-between px-3">
         <div class="d-flex align-items-center gap-2">
@@ -317,12 +350,12 @@ try {
                                value="<?php echo htmlspecialchars($filtroBusca); ?>" autocomplete="off">
                         
                         <datalist id="listaFiltroCbo">
-    <?php foreach ($especialidadesList as $itemCbo): 
-        $opcaoFormatada = $itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo'];
-    ?>
-        <option value="<?php echo htmlspecialchars($opcaoFormatada); ?>">
-    <?php endforeach; ?>
-</datalist>
+                        <?php foreach ($especialidadesList as $itemCbo): 
+                            $opcaoFormatada = $itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo'];
+                        ?>
+                            <option value="<?php echo htmlspecialchars($opcaoFormatada); ?>">
+                        <?php endforeach; ?>
+                        </datalist>
                     </div>
                 </div>
                 <div class="d-flex gap-2 mt-3">
@@ -336,7 +369,6 @@ try {
             </form>
         </div>
 
-        
         <div class="card-pagina">
             <div class="card-titulo d-flex justify-content-between align-items-center">
                 <span><i class="fa-solid fa-table-list"></i> Especialidades</span>
@@ -440,7 +472,7 @@ try {
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="formStatus" class="form-label">Status</label>
+                            <label technicians for="formStatus" class="form-label">Status</label>
                             <select class="form-select" id="formStatus" name="status">
                                 <option value="Ativo">Ativo</option>
                                 <option value="Inativo">Inativo</option>
@@ -465,7 +497,7 @@ try {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-   <script>
+    <script>
         var btnSanduiche      = document.getElementById('btnSanduiche');
         var sidebar           = document.getElementById('sidebar');
         var conteudoPrincipal = document.getElementById('conteudoPrincipal');
@@ -485,9 +517,9 @@ try {
         // 2. Função para ocultar/exibir os CBOs na lista do Modal
         function atualizarOpcoesCbo(cboPermitido = null) {
             var options = formBuscaCbo.options;
-            for (var i = 1; i < options.length; i++) { // pula o índice 0 ("Selecione...")
+            for (var i = 1; i < options.length; i++) {
                 var val = options[i].value;
-                var cboOption = val.split(' - ')[0]; // Pega apenas o número do CBO
+                var cboOption = val.split(' - ')[0];
                 
                 if (cbosRegistrados.includes(cboOption) && cboOption !== cboPermitido) {
                     options[i].style.display = 'none';
@@ -501,7 +533,6 @@ try {
 
         // Reset do formulário quando abre modal para nova especialidade
         modalFormEspecialidadeEl.addEventListener('show.bs.modal', function() {
-            // Só reseta se for uma nova especialidade (não edição)
             var btnClicado = document.activeElement;
             if (btnClicado && btnClicado.id === 'btnNovaEspecialidade') {
                 resetarFormularioEspecialidade();
