@@ -97,7 +97,7 @@ if ($result) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- ================ ESTILOS DA APLICAÇÃO ================ -->
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=<?php echo time(); ?>">
 </head>
 <body>
 
@@ -209,7 +209,6 @@ if ($result) {
                 ?>
                 <div class="dia <?php echo $classeHoje . ' ' . $classeFimSemana ?>">
 
-                        <!-- NOVO: Faixa com número do dia -->
                         <div class="numero-dia">
                             <span><?php echo sprintf('%02d', $dia) ?></span>
                         </div>
@@ -242,7 +241,11 @@ if ($result) {
                         <?php endforeach; ?>
 
                         <?php if ($totalAgend > $maxExibir): ?>
-                            <span class="link-mais">+ <?php echo $totalAgend - $maxExibir ?> mais</span>
+                            <span class="link-mais" 
+                                data-dia="<?php echo sprintf('%02d/%02d/%d', $dia, $mesAtual, $anoAtual); ?>"
+                                data-agendamentos='<?php echo htmlspecialchars(json_encode($agendamentosDoDia), ENT_QUOTES, 'UTF-8'); ?>'>
+                                + <?php echo $totalAgend - $maxExibir ?> mais
+                            </span>
                         <?php endif; ?>
                     </div>
                     <?php
@@ -258,43 +261,60 @@ if ($result) {
     ================================================== -->
     <div class="modal fade modal-detalhe" id="modalAgendamento" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
+            <div class="modal-content shadow rounded-3 border-0">
+                <div class="modal-header bg-primary text-white border-0">
                     <h5 class="modal-title"><i class="fa-solid fa-calendar-check me-2"></i>Detalhes do Agendamento</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="info-item">
-                        <i class="fa-solid fa-user"></i>
+                <div class="modal-body p-4">
+                    <div class="info-item mb-3 d-flex align-items-center">
+                        <i class="fa-solid fa-user me-3 text-secondary"></i>
                         <div><strong>Paciente:</strong> <span id="modalPaciente"></span></div>
                     </div>
-                    <div class="info-item">
-                        <i class="fa-solid fa-user-doctor"></i>
+                    <div class="info-item mb-3 d-flex align-items-center">
+                        <i class="fa-solid fa-user-doctor me-3 text-secondary"></i>
                         <div><strong>Médico:</strong> <span id="modalMedico"></span></div>
                     </div>
-                    <div class="info-item">
-                        <i class="fa-solid fa-stethoscope"></i>
+                    <div class="info-item mb-3 d-flex align-items-center">
+                        <i class="fa-solid fa-stethoscope me-3 text-secondary"></i>
                         <div><strong>Especialidade:</strong> <span id="modalEspecialidade"></span></div>
                     </div>
-                    <div class="info-item">
-                        <i class="fa-solid fa-calendar"></i>
+                    <div class="info-item mb-3 d-flex align-items-center">
+                        <i class="fa-solid fa-calendar me-3 text-secondary"></i>
                         <div><strong>Data:</strong> <span id="modalData"></span></div>
                     </div>
-                    <div class="info-item">
-                        <i class="fa-solid fa-clock"></i>
+                    <div class="info-item mb-3 d-flex align-items-center">
+                        <i class="fa-solid fa-clock me-3 text-secondary"></i>
                         <div><strong>Horário:</strong> <span id="modalHorario"></span></div>
                     </div>
-                    <div class="info-item">
-                        <i class="fa-solid fa-circle-info"></i>
+                    <div class="info-item mb-2 d-flex align-items-center">
+                        <i class="fa-solid fa-circle-info me-3 text-secondary"></i>
                         <div><strong>Status:</strong> <span id="modalStatus"></span></div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer bg-light border-0">
                     <button type="button" class="btn btn-danger" id="btnCancelarAgendamento">
                         <i class="fa-solid fa-ban me-1"></i> Cancelar Agendamento
                     </button>
-                    <!-- TODO: implementar ação de editar -->
                     <button type="button" class="btn btn-primary" id="btnEditarAgendamento"><i class="fa-solid fa-pen me-1"></i> Editar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalListaDia" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow rounded-3 border-0">
+                <div class="modal-header bg-primary text-white border-0">
+                    <h5 class="modal-title"><i class="fa-solid fa-list me-2"></i>Agendamentos - <span id="tituloDataLista"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="list-group list-group-flush" id="listaAgendamentosDia"></div>
+                </div>
+                <div class="modal-footer bg-light border-0">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                 </div>
             </div>
@@ -486,14 +506,71 @@ if ($result) {
             });
         });
 
+        // ==================================================
+        // VER MAIS AGENDAMENTOS DO DIA
+        // ==================================================
+        var modalListaDia = new bootstrap.Modal(document.getElementById('modalListaDia'));
+
         document.querySelectorAll('.link-mais').forEach(function(link) {
             link.addEventListener('click', function() {
-                Swal.fire({
-                    icon:               'info',
-                    title:              'Em breve',
-                    text:               'Aqui será exibida a lista completa de agendamentos do dia.',
-                    confirmButtonColor: '#0d6efd'
+                // Pega os dados escondidos no botão
+                var dataStr = link.getAttribute('data-dia');
+                var agendamentosJSON = link.getAttribute('data-agendamentos');
+                var agendamentos = JSON.parse(agendamentosJSON);
+
+                // Atualiza o título
+                document.getElementById('tituloDataLista').textContent = dataStr;
+                
+                // Limpa a lista anterior
+                var container = document.getElementById('listaAgendamentosDia');
+                container.innerHTML = '';
+
+                // Monta a nova lista
+                agendamentos.forEach(function(agend) {
+                    
+                    // Define a cor do status com as classes oficiais do seu CSS
+                    var classeStatus = '';
+                    if (agend.status === 'Confirmado') {
+                        classeStatus = 'badge-confirmado';
+                    } else if (agend.status === 'Pendente') {
+                        classeStatus = 'badge-pendente';
+                    } else {
+                        classeStatus = 'badge-cancelado';
+                    }
+                    
+                    // Utilizando Row e Col para proteger o espaço do Status
+                    var html = `
+                        <div class="p-3 border-bottom border-light">
+                            <div class="row align-items-center flex-nowrap">
+                                
+                                <div class="col overflow-hidden">
+                                    <div class="mb-2 text-dark d-flex align-items-center">
+                                        <i class="fa-solid fa-clock text-secondary me-3" style="width: 20px; text-align: center;"></i>
+                                        <span class="fw-bold me-2">${agend.horario}</span> - <span class="ms-2 text-truncate">${agend.paciente}</span>
+                                    </div>
+                                    <div class="text-secondary small d-flex align-items-center">
+                                        <i class="fa-solid fa-user-doctor text-secondary me-3" style="width: 20px; text-align: center;"></i>
+                                        <span class="text-truncate">${agend.medico} <span class="mx-1">•</span> ${agend.especialidade}</span>
+                                    </div>
+                                </div>
+
+                                <div class="col-auto">
+                                    <span class="badge-status ${classeStatus}">${agend.status}</span>
+                                </div>
+                                
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML += html;
                 });
+
+                // Remove a borda da última linha para ficar perfeito
+                if(container.lastElementChild) {
+                    container.lastElementChild.classList.remove('border-bottom');
+                }
+
+                // Abre o modal
+                modalListaDia.show();
             });
         });
     </script>

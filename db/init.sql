@@ -3,6 +3,8 @@
 -- Compatível com MySQL 5.6+ / MariaDB 10.1+
 -- ============================================================
 
+SET NAMES utf8mb4;
+
 CREATE DATABASE IF NOT EXISTS labdbprog2
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
