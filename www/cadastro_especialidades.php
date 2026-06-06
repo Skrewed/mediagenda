@@ -143,6 +143,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($id <= 0) {
                     throw new Exception('Especialidade inválida para edição.');
                 }
+
+                /* ============================================================
+                   PREPARED STATEMENT: Validar bloqueio de edição de CBO
+                ============================================================ */
+                $sqlCheckCbo = "SELECT cbo, 
+                                (SELECT COUNT(*) FROM agendamentos WHERE especialidade_id = ? AND status != 'Cancelado') AS agendamentos_ativos 
+                                FROM especialidades WHERE id = ?";
+                $stmtCheckCbo = mysqli_prepare($conexao_bd, $sqlCheckCbo);
+                if ($stmtCheckCbo) {
+                    mysqli_stmt_bind_param($stmtCheckCbo, "ii", $id, $id);
+                    mysqli_stmt_execute($stmtCheckCbo);
+                    $resultCheckCbo = mysqli_stmt_get_result($stmtCheckCbo);
+                    if ($rowCboCheck = mysqli_fetch_assoc($resultCheckCbo)) {
+                        if (intval($rowCboCheck['agendamentos_ativos']) > 0 && $rowCboCheck['cbo'] !== $cbo) {
+                            mysqli_stmt_close($stmtCheckCbo);
+                            throw new Exception('Não é possível alterar o CBO desta especialidade pois existem agendamentos não-cancelados vinculados a ela.');
+                        }
+                    }
+                    mysqli_stmt_close($stmtCheckCbo);
+                }
+
                 $sql = "UPDATE especialidades SET nome = ?, cbo = ?, status = ? WHERE id = ?";
                 $stmtExec = mysqli_prepare($conexao_bd, $sql);
                 if ($stmtExec) {
@@ -228,7 +249,8 @@ if ($filtroBusca !== '') {
 
 $sqlConsulta = "SELECT e.id, e.nome, e.cbo, e.status, e.data_criacao,
                        COUNT(DISTINCT me.medico_id) AS medico_count,
-                       COUNT(DISTINCT a.id) AS agenda_count
+                       COUNT(DISTINCT a.id) AS agenda_count,
+                       (SELECT COUNT(*) FROM agendamentos sub_a WHERE sub_a.especialidade_id = e.id AND sub_a.status != 'Cancelado') AS agendamentos_validos
                 FROM especialidades e
                 LEFT JOIN medico_especialidades me ON me.especialidade_id = e.id
                 LEFT JOIN agendamentos a ON a.especialidade_id = e.id";
@@ -416,6 +438,7 @@ if ($stmtBusca) {
                                                 data-nome="<?php echo htmlspecialchars($esp['nome']) ?>"
                                                 data-cbo="<?php echo htmlspecialchars($esp['cbo'] ?? '') ?>"
                                                 data-status="<?php echo htmlspecialchars($esp['status']) ?>"
+                                                data-bloqueio-cbo="<?php echo (intval($esp['agendamentos_validos']) > 0) ? 'true' : 'false' ?>"
                                                 title="Editar">
                                             <i class="fa-solid fa-pen"></i>
                                         </button>
@@ -538,6 +561,8 @@ if ($stmtBusca) {
             document.getElementById('formId').value = '';
             formNome.value = '';
             formCbo.value = '';
+            formCbo.readOnly = false;
+            formCbo.removeAttribute('title');
             document.getElementById('formStatus').value = 'Ativo';
         }
 
@@ -553,10 +578,19 @@ if ($stmtBusca) {
                 var cbo_salvo = btnEditar.dataset.cbo;
                 var nome_salvo = btnEditar.dataset.nome;
                 var status_salvo = btnEditar.dataset.status;
+                var bloqueio_cbo = btnEditar.dataset.bloqueioCbo === 'true';
                 
                 formCbo.value = cbo_salvo; 
                 formNome.value = nome_salvo;
                 document.getElementById('formStatus').value = status_salvo;
+
+                if (bloqueio_cbo) {
+                    formCbo.readOnly = true;
+                    formCbo.setAttribute('title', 'CBO bloqueado: Existem agendamentos ativos vinculados.');
+                } else {
+                    formCbo.readOnly = false;
+                    formCbo.removeAttribute('title');
+                }
                 modalFormEspecialidade.show();
                 return;
             }
