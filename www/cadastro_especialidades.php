@@ -456,20 +456,14 @@ if ($stmtBusca) {
                 <form id="formEspecialidade" action="cadastro_especialidades.php" method="POST">
                     <input type="hidden" name="acao" id="formAcao" value="novo">
                     <input type="hidden" name="id" id="formId" value="">
-                    <input type="hidden" name="nome" id="formNomeHidden">
-                    <input type="hidden" name="cbo" id="formCboHidden">
-
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label for="formBuscaCbo" class="form-label">Especialidade / CBO <span class="text-danger">*</span></label>
-                            <select class="form-select" id="formBuscaCbo" required>
-                                <option value="">Selecione...</option>
-                                <?php foreach ($especialidadesList as $itemCbo): ?> 
-                                    <option value="<?php echo htmlspecialchars($itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo']); ?>">
-                                        <?php echo htmlspecialchars($itemCbo['cod_cbo'] . ' - ' . $itemCbo['nome_cbo']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label for="formNome" class="form-label">Especialidade <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="formNome" name="nome" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="formCbo" class="form-label">CBO <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="formCbo" name="cbo" required pattern="\d*" maxlength="6" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                         </div>
                         <div class="mb-3">
                             <label technicians for="formStatus" class="form-label">Status</label>
@@ -507,29 +501,13 @@ if ($stmtBusca) {
         var modalFormEspecialidade   = new bootstrap.Modal(modalFormEspecialidadeEl);
         var formEspecialidade        = document.getElementById('formEspecialidade');
         
-        var formBuscaCbo   = document.getElementById('formBuscaCbo');
-        var formNomeHidden = document.getElementById('formNomeHidden');
-        var formCboHidden  = document.getElementById('formCboHidden');
+        var formNome = document.getElementById('formNome');
+        var formCbo  = document.getElementById('formCbo');
 
-        // 1. Array com os CBOs já cadastrados no banco de dados
-        var cbosRegistrados = <?php echo json_encode(array_column($especialidades, 'cbo')); ?>;
-
-        // 2. Função para ocultar/exibir os CBOs na lista do Modal
-        function atualizarOpcoesCbo(cboPermitido = null) {
-            var options = formBuscaCbo.options;
-            for (var i = 1; i < options.length; i++) {
-                var val = options[i].value;
-                var cboOption = val.split(' - ')[0];
-                
-                if (cbosRegistrados.includes(cboOption) && cboOption !== cboPermitido) {
-                    options[i].style.display = 'none';
-                    options[i].disabled = true;
-                } else {
-                    options[i].style.display = '';
-                    options[i].disabled = false;
-                }
-            }
-        }
+        // 1. Array com todas as especialidades registradas para validação front-end
+        var especialidadesRegistradas = <?php echo json_encode(array_map(function($item) { 
+            return ['id' => $item['id'], 'nome' => strtolower(trim($item['nome_cbo'])), 'cbo' => $item['cod_cbo']]; 
+        }, $especialidadesList)); ?>;
 
         // Reset do formulário quando abre modal para nova especialidade
         modalFormEspecialidadeEl.addEventListener('show.bs.modal', function() {
@@ -554,29 +532,13 @@ if ($stmtBusca) {
             sidebarOverlay.classList.remove('ativo');
         });
 
-        formBuscaCbo.addEventListener('change', function() {
-            var val = this.value;
-            if (val === '') {
-                formCboHidden.value = '';
-                formNomeHidden.value = '';
-            } else {
-                var parts = val.split(' - ');
-                formCboHidden.value = parts[0];
-                formNomeHidden.value = parts.slice(1).join(' - '); 
-            }
-        });
-
         function resetarFormularioEspecialidade() {
             document.getElementById('modalFormTitulo').innerHTML = '<i class="fa-solid fa-plus me-2"></i>Nova Especialidade';
             document.getElementById('formAcao').value = 'novo';
             document.getElementById('formId').value = '';
-            formBuscaCbo.value = '';
-            formCboHidden.value = '';
-            formNomeHidden.value = '';
+            formNome.value = '';
+            formCbo.value = '';
             document.getElementById('formStatus').value = 'Ativo';
-            
-            // 3. Atualiza a lista escondendo os já cadastrados no banco (não mais JSON)
-            atualizarOpcoesCbo(null);
         }
 
         document.querySelector('.tabela-especialidades').addEventListener('click', function(e) {
@@ -592,18 +554,9 @@ if ($stmtBusca) {
                 var nome_salvo = btnEditar.dataset.nome;
                 var status_salvo = btnEditar.dataset.status;
                 
-                formCboHidden.value = cbo_salvo; 
-                formNomeHidden.value = nome_salvo;
+                formCbo.value = cbo_salvo; 
+                formNome.value = nome_salvo;
                 document.getElementById('formStatus').value = status_salvo;
-                
-                // 4. Atualiza a lista permitindo o CBO que está sendo editado aparecer
-                atualizarOpcoesCbo(cbo_salvo);
-                
-                if (cbo_salvo && cbo_salvo !== '-') {
-                    formBuscaCbo.value = cbo_salvo + ' - ' + nome_salvo;
-                } else {
-                    formBuscaCbo.value = '';
-                }
                 modalFormEspecialidade.show();
                 return;
             }
@@ -628,10 +581,29 @@ if ($stmtBusca) {
         });
 
         function salvarEspecialidade() {
-            if (formBuscaCbo.value === '') {
-                Swal.fire('Atenção', 'Selecione uma especialidade!', 'warning');
+            var nomeInput = formNome.value.trim();
+            var cboInput = formCbo.value.trim();
+            var currentId = document.getElementById('formId').value;
+
+            if (nomeInput === '' || cboInput === '') {
+                Swal.fire('Atenção', 'Preencha os campos Especialidade e CBO!', 'warning');
                 return;
             }
+
+            var nomeFormatado = nomeInput.toLowerCase();
+            
+            var duplicado = especialidadesRegistradas.find(function(esp) {
+                // Em caso de edição, ignora o match com o próprio registro atual
+                if (currentId !== '' && esp.id == currentId) return false;
+                
+                return esp.nome === nomeFormatado || esp.cbo === cboInput;
+            });
+
+            if (duplicado) {
+                Swal.fire('Atenção', 'Já existe uma especialidade com este Nome ou CBO cadastrado!', 'warning');
+                return;
+            }
+
             formEspecialidade.submit();
         }
 
