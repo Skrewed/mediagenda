@@ -44,11 +44,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         if ($acao === 'novo') {
-            $paciente        = trim($_POST['paciente'] ?? '');
-            $medico_id       = intval($_POST['medico_id'] ?? 0);
+            $paciente         = trim($_POST['paciente'] ?? '');
+            $medico_id        = intval($_POST['medico_id'] ?? 0);
             $especialidade_id = intval($_POST['especialidade_id'] ?? 0);
-            $data            = trim($_POST['data'] ?? '');
-            $diaSemana       = date('w', strtotime($data));
+            $data             = trim($_POST['data'] ?? '');
+            $diaSemana        = date('w', strtotime($data));
 
             // ALTERAÇÃO WALKIRIA (Validação de Fim de Semana)
             if ($diaSemana == 0 || $diaSemana == 6) {
@@ -58,69 +58,155 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $horario = trim($_POST['horario'] ?? '');
             $status  = trim($_POST['status'] ?? 'Pendente');
 
-            // Validação de horário: apenas entre 7h e 17h
+            // Validação de horário: apenas entre 07:00 e 17:00 (inclusive)
             $horarioParts = explode(':', $horario);
             if (count($horarioParts) === 2) {
                 $horaAgendamento = intval($horarioParts[0]);
                 $minutoAgendamento = intval($horarioParts[1]);
                 $totalMinutosAgendamento = $horaAgendamento * 60 + $minutoAgendamento;
-                
-                $horarioAbertura = 7 * 60;   // 07:00
-                $horarioFechamento = 17 * 60; // 17:00
-                
-                if ($totalMinutosAgendamento < $horarioAbertura || $totalMinutosAgendamento >= $horarioFechamento) {
+
+                $horarioAbertura = 7 * 60;      // 07:00
+                $horarioFechamento = 17 * 60;   // 17:00
+
+                if (
+                    $totalMinutosAgendamento < $horarioAbertura ||
+                    $totalMinutosAgendamento > $horarioFechamento
+                ) {
                     throw new Exception('Agendamentos apenas entre 07:00 e 17:00.');
                 }
             }
 
-            if ($paciente === '' || $medico_id <= 0 || $especialidade_id <= 0 || $data === '' || $horario === '') {
+            if (
+                $paciente === '' ||
+                $medico_id <= 0 ||
+                $especialidade_id <= 0 ||
+                $data === '' ||
+                $horario === ''
+            ) {
                 throw new Exception('Preencha todos os campos obrigatórios do agendamento.');
             }
 
             // Verifica status do médico com Prepared Statement
             $sqlMedicoStatus = "SELECT status FROM medicos WHERE id = ?";
             $stmtMed = mysqli_prepare($conexao_bd, $sqlMedicoStatus);
+
             if ($stmtMed) {
                 mysqli_stmt_bind_param($stmtMed, "i", $medico_id);
                 mysqli_stmt_execute($stmtMed);
+
                 $resultMedicoStatus = mysqli_stmt_get_result($stmtMed);
-                
+
                 if (!$resultMedicoStatus || mysqli_num_rows($resultMedicoStatus) === 0) {
                     mysqli_stmt_close($stmtMed);
                     throw new Exception('Médico inválido para agendamento.');
                 }
+
                 $medicoRow = mysqli_fetch_assoc($resultMedicoStatus);
                 mysqli_stmt_close($stmtMed);
-                
+
                 if ($medicoRow['status'] !== 'Ativo') {
                     throw new Exception('Não é permitido agendar para médico inativo.');
                 }
             }
 
+            // Verifica conflito de agenda
+            $sqlConflito = "
+                SELECT id
+                FROM agendamentos
+                WHERE medico_id = ?
+                AND data = ?
+                AND horario = ?
+                AND status <> 'Cancelado'
+                LIMIT 1
+            ";
+
+            $stmtConf = mysqli_prepare($conexao_bd, $sqlConflito);
+
+            if ($stmtConf) {
+                mysqli_stmt_bind_param(
+                    $stmtConf,
+                    "iss",
+                    $medico_id,
+                    $data,
+                    $horario
+                );
+
+                mysqli_stmt_execute($stmtConf);
+
+                $resultConflito = mysqli_stmt_get_result($stmtConf);
+
+                if ($resultConflito && mysqli_num_rows($resultConflito) > 0) {
+                    mysqli_stmt_close($stmtConf);
+
+                    throw new Exception(
+                        'Já existe um agendamento para este médico neste dia e horário.'
+                    );
+                }
+
+                mysqli_stmt_close($stmtConf);
+            }
+
             // Inserção Limpa e Segura
-            $sqlInsert = "INSERT INTO agendamentos (paciente, medico_id, especialidade_id, data, horario, status) VALUES (?, ?, ?, ?, ?, ?)";
+            $sqlInsert = "
+                INSERT INTO agendamentos
+                (
+                    paciente,
+                    medico_id,
+                    especialidade_id,
+                    data,
+                    horario,
+                    status
+                )
+                VALUES
+                (
+                    ?, ?, ?, ?, ?, ?
+                )
+            ";
+
             $stmtIns = mysqli_prepare($conexao_bd, $sqlInsert);
+
             if ($stmtIns) {
-                mysqli_stmt_bind_param($stmtIns, "siisss", $paciente, $medico_id, $especialidade_id, $data, $horario, $status);
+                mysqli_stmt_bind_param(
+                    $stmtIns,
+                    "siisss",
+                    $paciente,
+                    $medico_id,
+                    $especialidade_id,
+                    $data,
+                    $horario,
+                    $status
+                );
+
                 if (!mysqli_stmt_execute($stmtIns)) {
                     mysqli_stmt_close($stmtIns);
                     throw new Exception('Não foi possível cadastrar o agendamento.');
                 }
+
                 mysqli_stmt_close($stmtIns);
             }
-            $redirect .= '?alert=success&acao=novo';
 
+            $redirect .= '?alert=success&acao=novo';
         } elseif ($acao === 'editar') {
             $id_agenda = intval($_POST['id'] ?? 0);
-            
             // VERIFICA SE A DATA DO AGENDAMENTO É ANTERIOR À DATA ATUAL (NÃO PERMITE EDIÇÃO)
-            $sqlVerifica = "SELECT data FROM agendamentos WHERE id = ?";
+            $sqlVerifica = "
+                SELECT
+                    data,
+                    status,
+                    medico_id,
+                    especialidade_id
+                FROM agendamentos
+                WHERE id = ?
+            ";
             $stmtVer = mysqli_prepare($conexao_bd, $sqlVerifica);
+
             if ($stmtVer) {
                 mysqli_stmt_bind_param($stmtVer, "i", $id_agenda);
                 mysqli_stmt_execute($stmtVer);
+
                 $resultVerifica = mysqli_stmt_get_result($stmtVer);
                 $agenda = mysqli_fetch_assoc($resultVerifica);
+
                 mysqli_stmt_close($stmtVer);
 
                 if ($agenda && $agenda['data'] < date('Y-m-d')) {
@@ -128,13 +214,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            $paciente        = trim($_POST['paciente'] ?? '');
-            $medico_id       = intval($_POST['medico_id'] ?? 0);
+            $paciente         = trim($_POST['paciente'] ?? '');
+            $medico_id        = intval($_POST['medico_id'] ?? 0);
             $especialidade_id = intval($_POST['especialidade_id'] ?? 0);
-            $data            = trim($_POST['data'] ?? '');
+            $data             = trim($_POST['data'] ?? '');
 
             // ALTERAÇÃO WALKIRIA (Validação de Fim de Semana)
             $diaSemana = date('w', strtotime($data));
+
             if ($diaSemana == 0 || $diaSemana == 6) {
                 throw new Exception('Não é permitido agendar aos finais de semana.');
             }
@@ -142,17 +229,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $horario = trim($_POST['horario'] ?? '');
             $status  = trim($_POST['status'] ?? 'Pendente');
 
-            // Validação de horário
+            // Impede reativar agendamento cancelado se o médico não possuir mais a especialidade
+            if (
+                $agenda &&
+                $agenda['status'] === 'Cancelado' &&
+                in_array($status, ['Pendente', 'Confirmado'])
+            ) {
+
+                $sqlEspecialidade = "
+                    SELECT 1
+                    FROM medico_especialidades
+                    WHERE medico_id = ?
+                    AND especialidade_id = ?
+                    LIMIT 1
+                ";
+
+                $stmtEsp = mysqli_prepare($conexao_bd, $sqlEspecialidade);
+
+                if ($stmtEsp) {
+
+                    mysqli_stmt_bind_param(
+                        $stmtEsp,
+                        "ii",
+                        $agenda['medico_id'],
+                        $agenda['especialidade_id']
+                    );
+
+                    mysqli_stmt_execute($stmtEsp);
+
+                    $resEsp = mysqli_stmt_get_result($stmtEsp);
+
+                    if (!$resEsp || mysqli_num_rows($resEsp) === 0) {
+
+                        mysqli_stmt_close($stmtEsp);
+
+                        throw new Exception(
+                            'Este agendamento não pode ser reativado porque o médico não possui mais esta especialidade.'
+                        );
+                    }
+
+                    mysqli_stmt_close($stmtEsp);
+                }
+            }
+
+            // Validação de horário: apenas entre 07:00 e 17:00 (inclusive)
             $horarioParts = explode(':', $horario);
+
             if (count($horarioParts) === 2) {
                 $horaAgendamento = intval($horarioParts[0]);
                 $minutoAgendamento = intval($horarioParts[1]);
                 $totalMinutosAgendamento = $horaAgendamento * 60 + $minutoAgendamento;
-                
+
                 $horarioAbertura = 7 * 60;
                 $horarioFechamento = 17 * 60;
-                
-                if ($totalMinutosAgendamento < $horarioAbertura || $totalMinutosAgendamento >= $horarioFechamento) {
+
+                if (
+                    $totalMinutosAgendamento < $horarioAbertura ||
+                    $totalMinutosAgendamento > $horarioFechamento
+                ) {
                     throw new Exception('Agendamentos apenas entre 07:00 e 17:00.');
                 }
             }
@@ -160,38 +294,114 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($id_agenda <= 0) {
                 throw new Exception('Agendamento inválido para edição.');
             }
-            if ($paciente === '' || $medico_id <= 0 || $especialidade_id <= 0 || $data === '' || $horario === '') {
+
+            if (
+                $paciente === '' ||
+                $medico_id <= 0 ||
+                $especialidade_id <= 0 ||
+                $data === '' ||
+                $horario === ''
+            ) {
                 throw new Exception('Preencha todos os campos obrigatórios do agendamento.');
             }
 
-            // Verifica status do médico parceiro
+            // Verifica status do médico
             $sqlMedicoStatus = "SELECT status FROM medicos WHERE id = ?";
             $stmtMed = mysqli_prepare($conexao_bd, $sqlMedicoStatus);
+
             if ($stmtMed) {
                 mysqli_stmt_bind_param($stmtMed, "i", $medico_id);
                 mysqli_stmt_execute($stmtMed);
+
                 $resultMedicoStatus = mysqli_stmt_get_result($stmtMed);
+
                 if ($resultMedicoStatus && $medicoRow = mysqli_fetch_assoc($resultMedicoStatus)) {
                     if ($medicoRow['status'] !== 'Ativo') {
                         mysqli_stmt_close($stmtMed);
                         throw new Exception('Não é permitido agendar para médico inativo.');
                     }
                 }
+
                 mysqli_stmt_close($stmtMed);
             }
 
+            // Verifica conflito de agenda
+            $sqlConflito = "
+                SELECT id
+                FROM agendamentos
+                WHERE medico_id = ?
+                AND data = ?
+                AND horario = ?
+                AND status <> 'Cancelado'
+                AND id <> ?
+                LIMIT 1
+            ";
+
+            $stmtConf = mysqli_prepare($conexao_bd, $sqlConflito);
+
+            if ($stmtConf) {
+                mysqli_stmt_bind_param(
+                    $stmtConf,
+                    "issi",
+                    $medico_id,
+                    $data,
+                    $horario,
+                    $id_agenda
+                );
+
+                mysqli_stmt_execute($stmtConf);
+
+                $resultConflito = mysqli_stmt_get_result($stmtConf);
+
+                if ($resultConflito && mysqli_num_rows($resultConflito) > 0) {
+                    mysqli_stmt_close($stmtConf);
+
+                    throw new Exception(
+                        'Já existe um agendamento para este médico neste dia e horário.'
+                    );
+                }
+
+                mysqli_stmt_close($stmtConf);
+            }
+
             // Executa a Atualização Segura
-            $sqlUpdate = "UPDATE agendamentos SET paciente = ?, medico_id = ?, especialidade_id = ?, data = ?, horario = ?, status = ? WHERE id = ?";
+            $sqlUpdate = "
+                UPDATE agendamentos
+                SET
+                    paciente = ?,
+                    medico_id = ?,
+                    especialidade_id = ?,
+                    data = ?,
+                    horario = ?,
+                    status = ?
+                WHERE id = ?
+            ";
+
             $stmtUpd = mysqli_prepare($conexao_bd, $sqlUpdate);
+
             if ($stmtUpd) {
-                mysqli_stmt_bind_param($stmtUpd, "siisssi", $paciente, $medico_id, $especialidade_id, $data, $horario, $status, $id_agenda);
+                mysqli_stmt_bind_param(
+                    $stmtUpd,
+                    "siisssi",
+                    $paciente,
+                    $medico_id,
+                    $especialidade_id,
+                    $data,
+                    $horario,
+                    $status,
+                    $id_agenda
+                );
+
                 if (!mysqli_stmt_execute($stmtUpd)) {
                     mysqli_stmt_close($stmtUpd);
                     throw new Exception('Não foi possível atualizar o agendamento.');
                 }
+
                 mysqli_stmt_close($stmtUpd);
             }
+
             $redirect .= '?alert=success&acao=editar';
+            
 
         } elseif ($acao === 'cancelar') {
             $id_agenda = intval($_POST['id'] ?? 0);
@@ -944,11 +1154,25 @@ if ($editarId > 0) {
         }
 
         // ALTERAÇÃO WALKIRIA
-        document.getElementById('formData').addEventListener('change', function() {
+        document.getElementById('formData').addEventListener('blur', function() {
+
+            if (!this.value) {
+                return;
+            }
+
             const partes = this.value.split('-');
-            const ano = parseInt(partes[0]);
-            const mes = parseInt(partes[1]) - 1;
-            const dia = parseInt(partes[2]);
+
+            if (partes.length !== 3) {
+                return;
+            }
+
+            const ano = Number(partes[0]);
+            const mes = Number(partes[1]) - 1;
+            const dia = Number(partes[2]);
+
+            if (isNaN(ano) || isNaN(mes) || isNaN(dia)) {
+                return;
+            }
 
             const dataSelecionada = new Date(ano, mes, dia, 12, 0, 0);
             const diaSemana = dataSelecionada.getDay();
@@ -959,28 +1183,48 @@ if ($editarId > 0) {
                     title: 'Data inválida',
                     text: 'Não é permitido realizar agendamentos aos finais de semana.'
                 });
+
                 this.value = '';
+                this.focus();
             }
         });
 
-        document.getElementById('formHorario').addEventListener('change', function() {
+        document.getElementById('formHorario').addEventListener('blur', function () {
+
             const horarioSelecionado = this.value;
-            if (horarioSelecionado === '') return;
-            
+
+            if (!horarioSelecionado || horarioSelecionado.indexOf(':') === -1) {
+                return;
+            }
+
             const partes = horarioSelecionado.split(':');
-            const hora = parseInt(partes[0]);
-            const minuto = parseInt(partes[1]);
-            
+
+            if (partes.length !== 2) {
+                return;
+            }
+
+            const hora = Number(partes[0]);
+            const minuto = Number(partes[1]);
+
+            if (isNaN(hora) || isNaN(minuto)) {
+                return;
+            }
+
             const totalMinutos = hora * 60 + minuto;
+
             const horarioAbertura = 7 * 60;
             const horarioFechamento = 17 * 60;
-            
-            if (totalMinutos < horarioAbertura || totalMinutos >= horarioFechamento) {
+
+            if (
+                totalMinutos < horarioAbertura ||
+                totalMinutos > horarioFechamento
+            ) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Horário inválido',
                     text: 'Agendamentos apenas entre 07:00 e 17:00.'
                 });
+
                 this.value = '';
             }
         });

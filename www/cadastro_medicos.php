@@ -130,6 +130,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw new Exception('Não foi possível verificar agendamentos futuros.');
                     }
                 }
+
+                /* ============================================================
+                VALIDAÇÃO: NÃO PERMITE REMOVER ESPECIALIDADE COM
+                AGENDAMENTOS FUTUROS VINCULADOS
+                ============================================================ */
+
+                // Especialidades atuais do médico
+                $especialidadesAtuais = [];
+
+                $sqlEspAtuais = "
+                    SELECT especialidade_id
+                    FROM medico_especialidades
+                    WHERE medico_id = ?
+                ";
+
+                $stmtEspAtuais = mysqli_prepare($conexao_bd, $sqlEspAtuais);
+
+                if ($stmtEspAtuais) {
+
+                    mysqli_stmt_bind_param($stmtEspAtuais, "i", $id);
+                    mysqli_stmt_execute($stmtEspAtuais);
+
+                    $resEspAtuais = mysqli_stmt_get_result($stmtEspAtuais);
+
+                    while ($rowEsp = mysqli_fetch_assoc($resEspAtuais)) {
+                        $especialidadesAtuais[] = intval($rowEsp['especialidade_id']);
+                    }
+
+                    mysqli_stmt_close($stmtEspAtuais);
+                }
+
+                // Descobre quais especialidades estão sendo removidas
+                $especialidadesNovas = array_map('intval', $especialidades);
+
+                $especialidadesRemovidas = array_diff(
+                    $especialidadesAtuais,
+                    $especialidadesNovas
+                );
+
+                // Para cada especialidade removida, verifica agendamentos futuros
+                foreach ($especialidadesRemovidas as $especialidadeRemovida) {
+
+                    $sqlAgendamento = "
+                        SELECT
+                            e.nome AS especialidade
+                        FROM agendamentos a
+                        INNER JOIN especialidades e
+                            ON e.id = a.especialidade_id
+                        WHERE a.medico_id = ?
+                        AND a.especialidade_id = ?
+                        AND a.data >= CURDATE()
+                        AND a.status <> 'Cancelado'
+                        LIMIT 1
+                    ";
+
+                    $stmtAgendamento = mysqli_prepare(
+                        $conexao_bd,
+                        $sqlAgendamento
+                    );
+
+                    if ($stmtAgendamento) {
+
+                        mysqli_stmt_bind_param(
+                            $stmtAgendamento,
+                            "ii",
+                            $id,
+                            $especialidadeRemovida
+                        );
+
+                        mysqli_stmt_execute($stmtAgendamento);
+
+                        $resAgendamento = mysqli_stmt_get_result(
+                            $stmtAgendamento
+                        );
+
+                        if (
+                            $resAgendamento &&
+                            $rowAgendamento = mysqli_fetch_assoc($resAgendamento)
+                        ) {
+
+                            mysqli_stmt_close($stmtAgendamento);
+
+                            throw new Exception(
+                                'Não é possível remover a especialidade "' .
+                                $rowAgendamento['especialidade'] .
+                                '". Existem agendamentos futuros vinculados a ela.'
+                            );
+                        }
+
+                        mysqli_stmt_close($stmtAgendamento);
+                    }
+                }
                 
                 /* ============================================================
                    UPDATE: Edição do Médico

@@ -253,7 +253,7 @@ INSERT INTO agendamentos (id, paciente, medico_id, especialidade_id, data, horar
     ( 5, 'Júlia Mendes',    1, 1, '2026-06-15', '11:00', 'Confirmado'),
     ( 6, 'Roberto Dias',    3, 5, '2026-06-15', '15:30', 'Confirmado'),
     ( 7, 'Fernanda Costa',  4, 6, '2026-06-15', '16:30', 'Pendente'),
-    ( 8, 'Lucas Silva',     1, 1, '2026-06-15', '17:30', 'Confirmado'),
+    ( 8, 'Lucas Silva',     1, 1, '2026-06-15', '17:00', 'Confirmado'),
     ( 9, 'Luiz Henrique',   4, 6, '2026-06-19', '09:30', 'Confirmado'),
     (10, 'Beatriz Ramos',   2, 2, '2026-06-23', '10:00', 'Pendente'),
     (11, 'Marcos Vinícius', 3, 5, '2026-06-26', '14:00', 'Confirmado'),
@@ -290,7 +290,7 @@ INSERT INTO agendamentos (id, paciente, medico_id, especialidade_id, data, horar
     (40, 'Claudia Nascimento', 9,16,  '2026-06-15', '10:00', 'Confirmado'),      
     (41, 'Davi Moura',         8,17,  '2026-06-16', '15:30', 'Pendente'),       
     (42, 'Erika Vasconcelos',  7,43,   '2026-06-17', '08:45', 'Confirmado'),      
-    (43, 'Felipe Mendes',      10,47, '2026-06-19', '17:30', 'Cancelado'),      
+    (43, 'Felipe Mendes',      10,47, '2026-06-19', '17:00', 'Cancelado'),      
     (44, 'Gabriela Pinto',     8, 6,   '2026-06-22', '12:00', 'Confirmado'),      
     (45, 'Henrique Santos',    9,33,  '2026-06-23', '09:30', 'Pendente'),        
     (46, 'Isabela Gomes',      7, 9,   '2026-06-24', '16:00', 'Confirmado'),       
@@ -312,7 +312,7 @@ INSERT INTO agendamentos (id, paciente, medico_id, especialidade_id, data, horar
     (61, 'Xavier Almeida',     7,1,  '2026-07-17', '11:00', 'Confirmado'),       
     (62, 'Yara Mendes',        8,17, '2026-07-20', '15:30', 'Pendente'),         
     (63, 'Zeca Pereira',       9,5,   '2026-07-21', '09:15', 'Confirmado'),      
-    (64, 'Alice Barbosa',      7,43,'2026-07-22', '17:30', 'Pendente'),         
+    (64, 'Alice Barbosa',      7,43,'2026-07-22', '17:00', 'Pendente'),         
     (65, 'Benedito Torres',    8,17,  '2026-07-23', '12:45', 'Confirmado');      
 
 -- ============================================================
