@@ -121,23 +121,6 @@ Senha: admin123
 
 ---
 
-# 👨‍💻 Integrantes do Grupo
-
-- Allan Luiz Filipe Oliveira – 241216821
-- André Felipe Andrade Oliveira – 251210008
-- Gabriel Henrique da Fraga Santos – 2412112804
-- Isaac Oliveira Ferreira de Sousa – 2412113877
-- Vítor Hugo Moreira – 241211248
-- Walkíria Aparecida de Souza – 241210014
-
----
-
-# 📚 Objetivo Acadêmico
-
-Este projeto possui finalidade educacional e foi desenvolvido como atividade prática da disciplina de Programação Web.
-
----
-
 # 🧠 Funcionalidades Futuras
 
 - 📱 Responsividade mobile
@@ -173,6 +156,17 @@ O sistema possui:
 
 ---
 
-# 📌 Observação
+# 👨‍💻 Integrantes do Grupo
 
-Projeto desenvolvido para fins acadêmicos e aprendizado de desenvolvimento web com PHP e banco de dados relacional.
+- Allan Luiz Filipe Oliveira – 241216821
+- André Felipe Andrade Oliveira – 251210008
+- Gabriel Henrique da Fraga Santos – 2412112804
+- Isaac Oliveira Ferreira de Sousa – 2412113877
+- Vítor Hugo Moreira – 241211248
+- Walkíria Aparecida de Souza – 241210014
+
+---
+
+# 📚 Objetivo Acadêmico
+
+Este projeto possui finalidade educacional e foi desenvolvido como atividade prática da disciplina de Programação II.
