@@ -1,54 +1,89 @@
 # 🩺 MediAgenda
 
-Sistema web para gerenciamento e agendamento de consultas médicas desenvolvido em PHP durante as aulas de Programação II.
+Sistema web para gerenciamento e agendamento de consultas médicas desenvolvido em PHP como projeto acadêmico da disciplina de Programação II.
 
 ---
 
-# 🚀 Sobre o Projeto
+# 🚀 Funcionalidades
 
-O **MediAgenda** é uma aplicação desenvolvida para auxiliar no gerenciamento de consultas médicas, permitindo:
+## Autenticação e Usuários
 
-- 🔐 Login seguro com senha criptografada
-- 👤 Cadastro de usuários por código convite
-- 🛠 Administração de usuários (cadastro, edição, exclusão e filtros)
-- 👥 Controle de perfis de acesso (Administrador e Usuário)
-- 📅 Cadastro e gerenciamento de agendamentos
-- 👨‍⚕️ Cadastro de médicos
-- 🏥 Cadastro de especialidades
-- ❌ Cancelamento de consultas
-- 📊 Dashboard com calendário mensal
+- Login seguro com senha criptografada
+- Controle de sessão
+- Alteração de senha
+- Perfis de acesso (Administrador e Usuário)
+- Cadastro de usuários por código convite
+- Administração completa de usuários
+- Geração de convites para novos cadastros
 
-O projeto foi desenvolvido utilizando conceitos de:
+## Gestão Médica
 
-- PHP
-- MySQL / MariaDB
-- HTML5
-- CSS3
-- Bootstrap
-- JavaScript
-- SweetAlert2
-- Git e GitHub
+- Cadastro de médicos
+- Cadastro de especialidades
+- Relacionamento entre médicos e múltiplas especialidades
+- Controle de status (Ativo/Inativo)
+
+## Agendamentos
+
+- Cadastro de consultas
+- Visualização em calendário mensal
+- Controle de status:
+  - Confirmado
+  - Pendente
+  - Cancelado
+- Cancelamento de consultas
+- Bloqueio de alterações em datas passadas
+
+## Dashboard
+
+- Calendário mensal interativo
+- Visualização rápida dos agendamentos
+- Navegação entre meses
 
 ---
 
-# 📁 Estrutura do Projeto
+# 🛠️ Tecnologias Utilizadas
+
+| Tecnologia | Finalidade |
+|------------|------------|
+| PHP 8+ | Back-end |
+| MySQL / MariaDB | Banco de dados |
+| Bootstrap 5 | Interface |
+| JavaScript | Interatividade |
+| SweetAlert2 | Alertas |
+| HTML5 | Estrutura |
+| CSS3 | Estilização |
+| Docker | Containerização |
+| Git/GitHub | Versionamento |
+
+---
+
+# 📂 Estrutura do Projeto
 
 ```text
 mediagenda/
 │
-├── login.php
-├── principal.php
-├── redirect.php
-├── logout.php
-├── conexao.php
-├── cadastro_agendas.php
-├── cadastro_medicos.php
-├── cadastro_especialidades.php
-├── cadastro_usuarios.php
-├── admin_usuarios.php
-├── config_usuarios.php
-├── cancelar_agendamento.php
-├── init.sql
+├── db/
+│   └── init.sql
+│
+├── www/
+│   ├── login.php
+│   ├── logout.php
+│   ├── principal.php
+│   ├── admin_usuarios.php
+│   ├── cadastro_usuarios.php
+│   ├── cadastro_medicos.php
+│   ├── cadastro_especialidades.php
+│   ├── cadastro_agendas.php
+│   ├── cancelar_agendamento.php
+│   ├── buscar_especialidades.php
+│   ├── config_usuarios.php
+│   ├── conexao.php
+│   ├── style.css
+│   └── img/
+│
+├── docker-compose.yml
+├── dockerfile
 └── README.md
 ```
 
@@ -56,117 +91,152 @@ mediagenda/
 
 # 🗄️ Banco de Dados
 
-O sistema utiliza MySQL/MariaDB.
+O banco foi modelado para atender ao gerenciamento de consultas médicas.
 
-O arquivo:
+Principais entidades:
 
-```text
-init.sql
-```
+- Usuários
+- Convites
+- Médicos
+- Especialidades
+- Agendamentos
 
-contém:
+Views disponíveis:
 
-- criação do banco;
-- tabelas;
-- relacionamentos;
-- views utilizadas pelo sistema.
+### vw_agendamentos
 
----
+Retorna os agendamentos com os nomes dos médicos e especialidades já resolvidos.
 
-# ⚙️ Como Executar
+### vw_medicos
 
-## 1️⃣ Criar o banco de dados
+Retorna médicos e suas respectivas especialidades utilizando relacionamento muitos-para-muitos.
 
-Execute o arquivo:
+O script completo encontra-se em:
 
 ```sql
-init.sql
+db/init.sql
 ```
-
-no MySQL ou MariaDB.
-
----
-
-## 2️⃣ Configurar a conexão
-
-No arquivo:
-
-```php
-conexao.php
-```
-
-configure:
-
-- servidor;
-- usuário;
-- senha;
-- banco de dados.
-
----
-
-## 3️⃣ Executar o projeto
-
-Abra o projeto em um servidor PHP e localhost. Você será redirecionado para:
-
-```text
-localhost/login.php
-```
-
-Durante a criação do banco, foi incluído manualmente um usuário Administrador:
-
-```text
-Login: admin
-Senha: admin123
-```
-
----
-
-# 🧠 Funcionalidades Futuras
-
-- 📱 Responsividade mobile
-- 🔔 Notificações de consultas
-- 📈 Relatórios
-- ☁️ Publicação em nuvem
-
----
-
-# 💻 Tecnologias Utilizadas
-
-| Tecnologia    | Finalidade       |
-| ------------- | ---------------- |
-| PHP           | Back-end         |
-| MySQL/MariaDB | Banco de dados   |
-| Bootstrap     | Interface        |
-| JavaScript    | Interatividade   |
-| SweetAlert2   | Alertas modernos |
-| Git/GitHub    | Versionamento    |
 
 ---
 
 # 🔒 Segurança
 
-O sistema possui:
+O sistema implementa:
 
-- autenticação de usuários por login e senha;
-- senhas armazenadas com hash seguro utilizando password_hash();
-- alteração de senha pelo próprio usuário;
-- controle de acesso por perfil (Administrador e Usuário);
-- restrição de acesso à área administrativa;
-- bloqueio de edição de agendamentos com data anterior ao dia atual.
+- Senhas armazenadas com `password_hash()`
+- Verificação com `password_verify()`
+- Controle de sessão
+- Controle de permissões por perfil
+- Restrição de acesso administrativo
+- Prepared Statements para consultas SQL
+- Proteção contra SQL Injection
+- Validação de autenticação em páginas restritas
 
 ---
 
-# 👨‍💻 Integrantes do Grupo
+# 🐳 Executando com Docker
 
-- Allan Luiz Filipe Oliveira – 241216821
-- André Felipe Andrade Oliveira – 251210008
-- Gabriel Henrique da Fraga Santos – 2412112804
-- Isaac Oliveira Ferreira de Sousa – 2412113877
-- Vítor Hugo Moreira – 241211248
-- Walkíria Aparecida de Souza – 241210014
+## Subir os containers
+
+```bash
+docker compose up -d
+```
+
+## Acessar a aplicação
+
+```text
+http://localhost
+```
+
+---
+
+# ⚙️ Executando Manualmente
+
+## 1. Criar o banco
+
+Execute:
+
+```sql
+db/init.sql
+```
+
+## 2. Configurar a conexão
+
+Edite:
+
+```php
+www/conexao.php
+```
+
+e informe:
+
+- host
+- usuário
+- senha
+- banco de dados
+
+## 3. Iniciar servidor PHP
+
+Exemplo:
+
+```bash
+php -S localhost:8000
+```
+
+Acesse:
+
+```text
+http://localhost:8000
+```
+
+---
+
+# 👤 Usuário Administrador Inicial
+
+O banco já cria um usuário administrador padrão:
+
+```text
+Usuário: admin
+Senha: admin123
+```
+
+Recomenda-se alterar a senha após o primeiro acesso.
+
+---
+
+# 📈 Melhorias Futuras
+
+- Responsividade mobile completa
+- Notificações automáticas
+- Relatórios gerenciais
+- Dashboard estatístico
+- API REST
+- Integração com sistemas externos
+- Hospedagem em nuvem
+
+---
+
+# 👨‍💻 Equipe de Desenvolvimento
+
+| Integrante | Matrícula |
+|------------|------------|
+| Allan Luiz Filipe Oliveira | 241216821 |
+| André Felipe Andrade Oliveira | 251210008 |
+| Gabriel Henrique da Fraga Santos | 2412112804 |
+| Isaac Oliveira Ferreira de Sousa | 2412113877 |
+| Vítor Hugo Moreira | 241211248 |
+| Walkíria Aparecida de Souza | 241210014 |
 
 ---
 
 # 📚 Objetivo Acadêmico
 
-Este projeto possui finalidade educacional e foi desenvolvido como atividade prática da disciplina de Programação II.
+Projeto desenvolvido para aplicação prática dos conceitos estudados em Programação II, incluindo:
+
+- Programação Web
+- Banco de Dados
+- Segurança de Aplicações
+- CRUD
+- Relacionamentos SQL
+- Controle de Acesso
+- Versionamento de Código
