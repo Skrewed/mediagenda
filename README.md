@@ -33,6 +33,7 @@ Sistema web para gerenciamento e agendamento de consultas médicas desenvolvido 
   - Cancelado
 - Cancelamento de consultas
 - Bloqueio de alterações em datas passadas
+- Bloqueio de agendamentos em finais de semana
 
 ## Dashboard
 
