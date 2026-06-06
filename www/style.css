@@ -859,3 +859,15 @@ body {
 		font-size: 0.75rem;
 	}
 }
+
+/* Pendente = laranja/amarelo */
+.card-agendamento.card-pendente {
+	background: #fff3cd;
+	color: var(--texto-escuro);
+}
+
+/* Cancelado = vermelho */
+.card-agendamento.card-cancelado {
+	background: #f8d7da;
+	color: var(--texto-escuro);
+}

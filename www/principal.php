@@ -246,7 +246,15 @@ if ($stmt) {
                         foreach ($exibir as $agend):
                         ?>
                             <!-- ====== Template do card de agendamento (clicável → modal) ====== -->
-                            <div class="card-agendamento"
+                            <div class="card-agendamento <?php 
+                                if ($agend['status'] === 'Confirmado') {
+                                    echo ''; // mantém o azul padrão (já definido no CSS existente)
+                                } elseif ($agend['status'] === 'Pendente') {
+                                    echo 'card-pendente';
+                                } elseif ($agend['status'] === 'Cancelado') {
+                                    echo 'card-cancelado';
+                                }
+                            ?>"
                                  data-id="<?php echo $agend['id'] ?>"
                                  data-horario="<?php echo htmlspecialchars($agend['horario']) ?>"
                                  data-paciente="<?php echo htmlspecialchars($agend['paciente']) ?>"
