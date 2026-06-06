@@ -1,6 +1,6 @@
 # 🩺 MediAgenda
 
-Sistema web para gerenciamento e agendamento de consultas médicas desenvolvido em PHP durante as aulas de Programação Web.
+Sistema web para gerenciamento e agendamento de consultas médicas desenvolvido em PHP durante as aulas de Programação II.
 
 ---
 
